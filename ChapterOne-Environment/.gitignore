@@ -1,0 +1,11 @@
+/Library/
+/Temp/
+/Obj/
+/Logs/
+/Builds/
+/Review/
+/UserSettings/
+/Tools/MaterialCache/
+*.csproj
+*.sln
+*.slnx
