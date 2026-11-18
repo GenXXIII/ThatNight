@@ -8,7 +8,7 @@ namespace ThatNight.ChapterOne.Editor
     {
         public static void Build(Vector3 p)
         {
-            var old=Parent;Parent=Group("Older pedestal bedroom fan",p);
+            var old=Parent;Parent=ModelGroup("Older pedestal bedroom fan",p); var fanGroup=Parent;
             var green=S.Plain("Faded green fan enamel",new Color(.29f,.39f,.23f),.24f);
             Ball("Heavy fan base",new Vector3(0,.07f,0),new Vector3(.48f,.14f,.39f),green);
             Cylinder("Fan pedestal",new Vector3(0,.10f,0),.045f,.85f,green);
@@ -32,7 +32,7 @@ namespace ThatNight.ChapterOne.Editor
             }
             Ball("Fan central cap",hub-Vector3.forward*.085f,new Vector3(.11f,.11f,.035f),S.Cream);
             Cable("Fan electrical cord",new Vector3(0,.1f,.1f),new Vector3(-.48f,.025f,.32f),.025f,.008f,S.Black);
-            Parent=old;
+            Parent=old; ModelCombiner.CombineModel(fanGroup, addCollider: true, useCapsuleCollider: true);
         }
     }
 }

@@ -9,7 +9,7 @@ namespace ThatNight.ChapterOne.Editor
     {
         public static void Build(Vector3 position)
         {
-            var old=Parent;Parent=Group("Under house wooden sitting platform",position);
+            var old=Parent;Parent=ModelGroup("Under house wooden sitting platform",position); var sittingGroup=Parent;
             const float width=3,depth=1.8f,top=.56f;
             for(int x=-1;x<=1;x++)for(int z=-1;z<=1;z+=2)
             {
@@ -40,7 +40,7 @@ namespace ThatNight.ChapterOne.Editor
                 Box("Mat end binding",new Vector3(-.18f+s*1.165f,top+.023f,0),new Vector3(.025f,.008f,1.45f),edging);
             }
             Ball("Faded cotton resting cushion",new Vector3(.87f,top+.11f,.46f),new Vector3(.65f,.2f,.38f),S.Cream);
-            Parent=old;
+            Parent=old; ModelCombiner.CombineModel(sittingGroup, addCollider: true);
         }
     }
 }

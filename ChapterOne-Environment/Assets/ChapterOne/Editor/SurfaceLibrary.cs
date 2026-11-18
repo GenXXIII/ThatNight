@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace ThatNight.ChapterOne.Editor
 {
-    internal static class SurfaceLibrary
+    public static class SurfaceLibrary
     {
         public static Material Wood,DarkWood,Floor,Roof,Soil,Grass,Bark,Pink,Cream,Metal,Rust,Black,Leaf,Foliage,Clay,Porcelain,Brass,Water,Carving,Bulb;
         static readonly Dictionary<string,Material> library=new Dictionary<string,Material>();
@@ -50,7 +50,7 @@ namespace ThatNight.ChapterOne.Editor
         public static Texture2D Texture(string path)=>AssetDatabase.LoadAssetAtPath<Texture2D>(Root+"Textures/"+path);
         static Material Terrain(string name)
         {
-            var mat=Plain(name,new Color(.72f,.65f,.54f));mat.shader=Shader.Find("ThatNight/VillageGround");
+            var mat=Plain(name,new Color(.72f,.46f,.36f));mat.shader=Shader.Find("ThatNight/VillageGround");
             mat.SetTexture("_MainTex",Texture("Ground054/Ground054_1K-JPG_Color.jpg"));
             mat.SetTexture("_BumpMap",Texture("Ground054/Ground054_1K-JPG_NormalGL.jpg"));
             mat.SetTexture("_GrassTex",Texture("Ground037/Ground037_1K-JPG_Color.jpg"));

@@ -1,70 +1,87 @@
-using UnityEngine;
+﻿using UnityEngine;
 using static ThatNight.ChapterOne.Editor.MeshFactory;
-using S=ThatNight.ChapterOne.Editor.SurfaceLibrary;
+using S = ThatNight.ChapterOne.Editor.SurfaceLibrary;
 
 namespace ThatNight.ChapterOne.Editor
 {
-    // Temporary wedding textile enclosure: front and sides only, open toward the house.
+    // Open-air mountain wedding pavilion decoration: open sides, celebratory valances & ceremonial entrance arch.
     internal static class WeddingDraperyBuilder
     {
-        const float Height=SiteLayout.WeddingEave,Opening=SiteLayout.EntranceHalfWidth,Rear=SiteLayout.WeddingRear;
+        const float Height = SiteLayout.WeddingEave, Opening = SiteLayout.EntranceHalfWidth, Rear = SiteLayout.WeddingRear;
+
         public static void Build(float front)
         {
-            front=SiteLayout.WeddingFront;
-            var old=Parent;
-            Parent=Group("Wedding fabric enclosure - front and sides - open rear",Vector3.up*SiteLayout.HillElevation);
-            float half=SiteLayout.HalfWidth;
-            float sideFront=SiteLayout.EntranceSideFront;
-            Run(new Vector3(-half,0,sideFront),new Vector3(-Opening,0,sideFront),5);
-            Run(new Vector3(Opening,0,sideFront),new Vector3(half,0,sideFront),5);
-            Run(new Vector3(-half,0,sideFront),new Vector3(-half,0,Rear),8);
-            Run(new Vector3(half,0,sideFront),new Vector3(half,0,Rear),8);
-            // Close the marked porch-side gaps beneath the middle roof.
-            var enclosure=Parent;
-            Parent=Group("Entrance porch left fabric cover",Vector3.zero);
-            Run(new Vector3(-Opening,0,SiteLayout.RoofFront),new Vector3(-Opening,0,sideFront),1);
-            Parent=enclosure;
-            Parent=Group("Entrance porch right fabric cover",Vector3.zero);
-            Run(new Vector3(Opening,0,SiteLayout.RoofFront),new Vector3(Opening,0,sideFront),1);
-            Parent=enclosure;
-            // Full-width passage: no inner curtain panels, returns or doorway posts.
-            Grid("Fabric entrance runner",6,90,(u,v)=>{
-                float x=Mathf.Lerp(-1.0f,1.0f,u),z=Mathf.Lerp(front-2,Rear,v);
-                return new Vector3(x,GroundDetailBuilder.Height(x,z)-SiteLayout.HillElevation+.012f,z);
-            },S.Pink,new Vector2(2,12),true);
-            LightingBuilder.Bulb(new Vector3(0,3.25f,front+.35f),6,2.5f,false);
-            Parent=old;
-        }
-        static void Run(Vector3 a,Vector3 b,int bays)
-        {
-            Vector3 dir=(b-a).normalized;float width=Vector3.Distance(a,b)/bays;
-            for(int i=0;i<bays;i++)
+            front = SiteLayout.WeddingFront;
+            var old = Parent;
+            Parent = ModelGroup("Wedding open pavilion decorations and ceremonial arch", Vector3.up * SiteLayout.HillElevation);
+
+            float half = SiteLayout.HalfWidth;
+            float sideFront = SiteLayout.EntranceSideFront;
+
+            // 1. Festive Corner and Entrance Pavilion Pillars with gathered silk sashes and gold rosettes
+            Vector3[] pillarPositions = {
+                new Vector3(-half, 0, sideFront), new Vector3(half, 0, sideFront),
+                new Vector3(-half, 0, Rear), new Vector3(half, 0, Rear),
+                new Vector3(-Opening, 0, sideFront), new Vector3(Opening, 0, sideFront),
+                new Vector3(-Opening, 0, SiteLayout.RoofFront), new Vector3(Opening, 0, SiteLayout.RoofFront)
+            };
+
+            foreach (var pos in pillarPositions)
             {
-                var old=Parent;Parent=Group("Hanging fabric bay",Vector3.Lerp(a,b,i/(float)bays));
-                Parent.localRotation=Quaternion.FromToRotation(Vector3.right,dir);
-                Cylinder("Slim temporary wedding pole",Vector3.zero,.035f,Height+.08f,S.DarkWood);
-                if(i==bays-1)Cylinder("Slim temporary wedding pole",Vector3.right*width,.035f,Height+.08f,S.DarkWood);
-                Beam("Fabric suspension rail",Vector3.up*Height,new Vector3(width,Height,0),.04f,S.DarkWood);
-                Grid("Loose pleated ivory curtain",64,24,(u,v)=>{
-                    float sag=Mathf.Sin(u*Mathf.PI)*.09f;
-                    float hem=.08f+Mathf.Sin(u*Mathf.PI*18)*.035f;
-                    float y=Mathf.Lerp(Height-sag,hem,v);
-                    float fold=Mathf.Sin(u*Mathf.PI*28)*(.055f+v*.045f);
-                    float billow=Mathf.Sin(u*Mathf.PI)*Mathf.Sin(v*Mathf.PI)*.19f;
-                    return new Vector3(u*width,y,fold+billow+.05f);
-                },S.Cream,new Vector2(3,3),true);
-                Swags(width);
-                WeddingYardBuilder.Rosette(new Vector3(0,Height,-.15f),.22f);
-                Parent=old;
+                PillarWrap(pos, Height);
             }
+
+            // 2. Ceremonial Entrance Arch (Khlok Pka Sla) at the front of the wedding runner
+            CeremonialEntranceArch(new Vector3(0, 0, SiteLayout.RoofFront));
+
+            // 3. Central Fabric Wedding Runner leading to the stilt house
+            Grid("Fabric wedding entrance runner", 6, 90, (u, v) =>
+            {
+                float x = Mathf.Lerp(-1.1f, 1.1f, u), z = Mathf.Lerp(SiteLayout.RoofFront, Rear, v);
+                return new Vector3(x, GroundDetailBuilder.Height(x, z) - SiteLayout.HillElevation + .014f, z);
+            }, S.Pink, new Vector2(2, 14), true);
+
+            // Overhead festive hanging bulb at entrance
+            LightingBuilder.Bulb(new Vector3(0, 3.4f, front + .35f), 6, 2.5f, false);
+
+            var draperyGroup = Parent;
+            Parent = old;
+            ModelCombiner.CombineModel(draperyGroup, addCollider: false);
         }
-        static void Swags(float width)
+
+        static void PillarWrap(Vector3 pos, float height)
         {
-            var old=Parent;Parent=Group("Dusty pink gathered valance",new Vector3(0,Height,-.16f));
-            WeddingYardBuilder.Swag(width,.65f,S.Pink);
-            Parent=Group("Ivory draped trim",new Vector3(0,-.13f,-.04f));
-            WeddingYardBuilder.Swag(width,.65f,S.Cream);
-            Parent=old;
+            // Festive gathered silk wraps around pavilion support posts
+            Cylinder("Bamboo pavilion pillar", pos, .065f, height, S.DarkWood, 16);
+            Tube("Silk pillar wrap lower", pos + Vector3.up * 1.2f, .085f, .018f, S.Pink, Quaternion.identity, 16);
+            Tube("Silk pillar wrap upper", pos + Vector3.up * (height - .6f), .085f, .018f, S.Pink, Quaternion.identity, 16);
+            WeddingYardBuilder.Rosette(pos + Vector3.up * (height - .55f) + Vector3.back * .08f, .22f);
+        }
+
+        static void CeremonialEntranceArch(Vector3 p)
+        {
+            // Traditional Khmer arched wedding gate (Rong Pka Sla)
+            float archWidth = 3.2f, archHeight = 3.6f;
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var basePos = p + new Vector3(side * archWidth / 2, 0, 0);
+                Cylinder("Arch post base", basePos, .10f, .35f, S.Clay);
+                Cylinder("Arch bamboo timber post", basePos + Vector3.up * .35f, .075f, archHeight - .35f, S.Wood, 16);
+                WeddingYardBuilder.Rosette(basePos + Vector3.up * (archHeight - .2f), .26f);
+            }
+
+            // Arched curved lintel with jasmine and marigold garlands
+            Grid("Arched floral wedding lintel", 32, 6, (u, v) =>
+            {
+                float a = u * Mathf.PI;
+                float x = (u - .5f) * archWidth;
+                float y = archHeight + Mathf.Sin(a) * .65f + (v - .5f) * .18f;
+                return p + new Vector3(x, y, 0);
+            }, S.Pink, new Vector2(4, 1), true);
+
+            // Gold trimmed welcome banner across arch
+            Box("Wedding welcome board", p + new Vector3(0, archHeight + .45f, 0), new Vector3(2.2f, .42f, .04f), S.Cream);
+            Box("Welcome board gold trim", p + new Vector3(0, archHeight + .45f, -.025f), new Vector3(2.28f, .48f, .01f), S.Brass);
         }
     }
 }

@@ -7,11 +7,18 @@ using Object=UnityEngine.Object;
 
 namespace ThatNight.ChapterOne.Editor
 {
-    internal static class MeshFactory
+    public static class MeshFactory
     {
         public static Transform Parent;
         public static Transform Group(string name,Vector3 p)
         {var g=new GameObject(name);g.transform.SetParent(Parent,false);g.transform.localPosition=p;return g.transform;}
+        public static Transform ModelGroup(string name,Vector3 p)
+        {
+            var g=Group(name,p);
+            var root=g.gameObject.AddComponent<ThatNight.ChapterOne.ModelRoot>();
+            root.modelName=name;
+            return g;
+        }
         public static GameObject MeshObject(string name,Mesh mesh,Material mat)
         {
             var g=Group(name,Vector3.zero).gameObject;g.AddComponent<MeshFilter>().sharedMesh=mesh;g.AddComponent<MeshRenderer>().sharedMaterial=mat;g.isStatic=true;return g;
@@ -88,7 +95,9 @@ namespace ThatNight.ChapterOne.Editor
             foreach(var group in groups)
             {
                 var mesh=new Mesh{name=prefix+" "+group.Key,indexFormat=IndexFormat.UInt32};mesh.CombineMeshes(group.Value.ToArray(),true,true);mesh.RecalculateBounds();
-                mesh=Save(mesh,"Assets/ChapterOne/Models/"+prefix+"_"+group.Key+".asset");MeshObject(group.Key,mesh,materials[group.Key]);
+                mesh=Save(mesh,"Assets/ChapterOne/Models/"+prefix+"_"+group.Key+".asset");
+                var bakedObj=MeshObject(group.Key,mesh,materials[group.Key]);
+                if(prefix=="Village")bakedObj.GetComponent<MeshRenderer>().shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
             }
             Parent=previous;PrefabUtility.SaveAsPrefabAsset(root.gameObject,"Assets/ChapterOne/Prefabs/"+prefix+".prefab");
         }
