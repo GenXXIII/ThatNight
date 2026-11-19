@@ -119,34 +119,112 @@ namespace ThatNight.ChapterOne.Editor
                 float dist = p.x - hillStartX;
                 float toeBlend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(dist / 6.0f));
 
+                // Seamless connection to northern mountains:
+                // Right-side hill starts at +55m beside the village, and smoothly scales up to +240m
+                // as it travels north (z > 70m to 1100m) to connect seamlessly with the northern mountains!
+                float northRamp = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(70.0f, 1100.0f, z));
+                float heightMultiplier = Mathf.Lerp(1.0f, 4.4f, northRamp);
+
                 // Steep wall: climbs +28m in first 10m (slope > 65 degrees, completely unclimbable!)
                 float steepWall = Mathf.Clamp01(dist / 10.0f);
-                float wallRise = Mathf.Pow(steepWall, 0.70f) * 28.5f;
+                float wallRise = Mathf.Pow(steepWall, 0.70f) * 28.5f * heightMultiplier;
 
-                // Crests into deep craggy mountain ridge reaching +48m to +58m
+                // Crests into deep craggy mountain ridge reaching +48m to +58m beside village, and +240m up north!
                 float upperSlope = Mathf.Clamp01(Mathf.Max(0f, dist - 10.0f) / 45.0f);
-                float ridgeRise = Mathf.Pow(upperSlope, 1.10f) * 26.0f;
+                float ridgeRise = Mathf.Pow(upperSlope, 1.10f) * 26.0f * heightMultiplier;
 
                 // Geological vertical clefts only high up the slope (dist > 12m), NEVER at base
                 float highDist = Mathf.Max(0f, dist - 12.0f);
-                float verticalClefts = -Mathf.Pow(Mathf.Abs(Mathf.Sin(p.y * 0.075f + p.x * 0.035f)), 1.8f) * 4.5f * Mathf.SmoothStep(0f, 1f, highDist / 8.0f);
+                float verticalClefts = -Mathf.Pow(Mathf.Abs(Mathf.Sin(p.y * 0.075f + p.x * 0.035f)), 1.8f) * 4.5f * Mathf.SmoothStep(0f, 1f, highDist / 8.0f) * heightMultiplier;
 
                 // Craggy rock shelves, spurs and buttresses jutting outward
-                float rockSpurs = (Mathf.Sin(p.y * 0.052f + 0.9f) * 4.5f + Mathf.Cos(p.y * 0.11f) * 2.2f) * Mathf.SmoothStep(0f, 1f, highDist / 6.0f);
+                float rockSpurs = (Mathf.Sin(p.y * 0.052f + 0.9f) * 4.5f + Mathf.Cos(p.y * 0.11f) * 2.2f) * Mathf.SmoothStep(0f, 1f, highDist / 6.0f) * heightMultiplier;
 
                 // Rugged geological benches
-                float ledges = Mathf.Sin(dist * 0.22f + p.y * 0.045f) * 2.5f * Mathf.SmoothStep(0f, 1f, highDist / 8.0f);
+                float ledges = Mathf.Sin(dist * 0.22f + p.y * 0.045f) * 2.5f * Mathf.SmoothStep(0f, 1f, highDist / 8.0f) * heightMultiplier;
 
                 // Natural rock surface roughness
-                float cragRoughness = (Mathf.PerlinNoise(p.x * 0.18f + 50f, p.y * 0.18f + 110f) - 0.5f) * 1.5f * Mathf.SmoothStep(0f, 1f, dist / 6.0f);
+                float cragRoughness = (Mathf.PerlinNoise(p.x * 0.18f + 50f, p.y * 0.18f + 110f) - 0.5f) * 1.5f * Mathf.SmoothStep(0f, 1f, dist / 6.0f) * heightMultiplier;
 
                 rightHillRise = (wallRise + ridgeRise + verticalClefts + rockSpurs + ledges + cragRoughness) * toeBlend;
             }
 
+            // =========================================================================
+            // 4. IMPASSABLE EXTENDED MOUNTAIN BARRIER (LEFT, BEHIND, AND CONNECTING TO RIGHT)
+            // Designed with the EXACT same unclimbable steep cliffs and rugged crags as the Right Hill!
+            // - Left (West): x in [-1760m, -1440m] climbs +30m in first 10m (slope > 65 deg), reaching +240m!
+            // - Behind (North): z in [1560m, 1880m] climbs +30m in first 10m (slope > 65 deg), reaching +240m!
+            // - Connects seamlessly with the right-side hill in the Northeast corner!
+            // =========================================================================
+            float westHillRise = 0f;
+            float westStartX = -1440.0f;
+            if (x < westStartX)
+            {
+                float distW = westStartX - x;
+                float toeBlendW = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(distW / 6.0f));
+
+                // Steep unclimbable wall: climbs +30m in first 10m (slope > 65 degrees!)
+                float steepWallW = Mathf.Clamp01(distW / 10.0f);
+                float wallRiseW = Mathf.Pow(steepWallW, 0.70f) * 30.0f;
+
+                // Crests into deep craggy mountain ridge reaching +180m to +240m
+                float upperSlopeW = Mathf.Clamp01(Mathf.Max(0f, distW - 10.0f) / 180.0f);
+                float ridgeRiseW = Mathf.Pow(upperSlopeW, 0.88f) * 140.0f + Mathf.Pow(upperSlopeW, 1.4f) * 80.0f;
+
+                // Geological vertical clefts (only high up the slope)
+                float highDistW = Mathf.Max(0f, distW - 12.0f);
+                float verticalCleftsW = -Mathf.Pow(Mathf.Abs(Mathf.Sin(z * 0.035f + x * 0.015f)), 1.8f) * 16.0f * Mathf.SmoothStep(0f, 1f, highDistW / 10.0f);
+
+                // Craggy rock shelves, spurs and buttresses jutting outward
+                float rockSpursW = (Mathf.Sin(z * 0.022f + 0.9f) * 20.0f + Mathf.Cos(z * 0.048f) * 10.0f) * Mathf.SmoothStep(0f, 1f, highDistW / 8.0f);
+
+                // Rugged geological benches
+                float ledgesW = Mathf.Sin(distW * 0.14f + z * 0.035f) * 12.0f * Mathf.SmoothStep(0f, 1f, highDistW / 10.0f);
+
+                // Natural rock surface roughness
+                float cragRoughnessW = (Mathf.PerlinNoise(x * 0.035f + 40f, z * 0.035f + 80f) - 0.5f) * 15.0f * Mathf.SmoothStep(0f, 1f, distW / 8.0f);
+
+                westHillRise = (wallRiseW + ridgeRiseW + verticalCleftsW + rockSpursW + ledgesW + cragRoughnessW) * toeBlendW;
+            }
+
+            float northHillRise = 0f;
+            float northStartZ = 1560.0f;
+            if (z > northStartZ)
+            {
+                float distN = z - northStartZ;
+                float toeBlendN = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(distN / 6.0f));
+
+                // Steep unclimbable wall: climbs +30m in first 10m (slope > 65 degrees!)
+                float steepWallN = Mathf.Clamp01(distN / 10.0f);
+                float wallRiseN = Mathf.Pow(steepWallN, 0.70f) * 30.0f;
+
+                // Crests into deep craggy mountain ridge reaching +180m to +240m
+                float upperSlopeN = Mathf.Clamp01(Mathf.Max(0f, distN - 10.0f) / 180.0f);
+                float ridgeRiseN = Mathf.Pow(upperSlopeN, 0.88f) * 140.0f + Mathf.Pow(upperSlopeN, 1.4f) * 80.0f;
+
+                // Geological vertical clefts (only high up the slope)
+                float highDistN = Mathf.Max(0f, distN - 12.0f);
+                float verticalCleftsN = -Mathf.Pow(Mathf.Abs(Mathf.Sin(x * 0.035f + z * 0.015f)), 1.8f) * 16.0f * Mathf.SmoothStep(0f, 1f, highDistN / 10.0f);
+
+                // Craggy rock shelves, spurs and buttresses jutting outward
+                float rockSpursN = (Mathf.Sin(x * 0.022f + 0.9f) * 20.0f + Mathf.Cos(x * 0.048f) * 10.0f) * Mathf.SmoothStep(0f, 1f, highDistN / 8.0f);
+
+                // Rugged geological benches
+                float ledgesN = Mathf.Sin(distN * 0.14f + x * 0.035f) * 12.0f * Mathf.SmoothStep(0f, 1f, highDistN / 10.0f);
+
+                // Natural rock surface roughness
+                float cragRoughnessN = (Mathf.PerlinNoise(x * 0.035f + 60f, z * 0.035f + 120f) - 0.5f) * 15.0f * Mathf.SmoothStep(0f, 1f, distN / 8.0f);
+
+                northHillRise = (wallRiseN + ridgeRiseN + verticalCleftsN + rockSpursN + ledgesN + cragRoughnessN) * toeBlendN;
+            }
+
+            // Seamless corner blend (NW corner where West and North meet)
+            float outerMountainRise = Mathf.Max(westHillRise, northHillRise) + Mathf.Min(westHillRise, northHillRise) * 0.35f;
+
             // Subtle micro ground texture only outside the yard
             float micro = (Mathf.PerlinNoise(x * 0.30f + 15f, z * 0.30f + 25f) - 0.5f) * 0.06f * yardFactor;
 
-            float terrainBase = leftLandHeight + naturalRoll + rightHillRise + micro;
+            float terrainBase = leftLandHeight + naturalRoll + rightHillRise + outerMountainRise + micro;
 
             return Mathf.Lerp(terrainBase, roadHeight, roadInfluence);
         }
@@ -285,9 +363,13 @@ namespace ThatNight.ChapterOne.Editor
             Vector3 local = SiteLayout.HouseLocal(p);
             if (Mathf.Abs(local.x) < SiteLayout.HouseWidth * .5f + .2f && Mathf.Abs(local.z) < SiteLayout.HouseDepth * .5f + .2f) grass = 0;
 
+            // Mountain rock transition: higher mountain slopes transition to dark rocky granite
+            if (p.y > 50f) grass *= (1.0f - Mathf.InverseLerp(50f, 180f, p.y) * 0.70f);
+
             float shade = 1.0f;
             if (Mathf.Abs(local.x) < SiteLayout.HouseWidth * .5f && Mathf.Abs(local.z) < SiteLayout.HouseDepth * .5f) shade = 0.45f;
             else if (SiteLayout.InWeddingRoof(p.x, p.z)) shade = 0.85f;
+            else if (p.y > 40f) shade = Mathf.Lerp(1.0f, 0.65f, Mathf.InverseLerp(40f, 220f, p.y));
 
             float damp = Mathf.Exp(-new Vector2(p.x - (-2.5f), p.z - 41f).sqrMagnitude / 6.0f) * 0.55f;
 
