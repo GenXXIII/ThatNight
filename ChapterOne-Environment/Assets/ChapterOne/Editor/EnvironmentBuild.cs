@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build;
@@ -18,10 +18,11 @@ namespace ThatNight.ChapterOne.Editor
         {
             Generate();
             Directory.CreateDirectory("Builds");
+            Directory.CreateDirectory("Builds/ChapterOne");
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions {
                 scenes = new[]{ Scene },
                 target = BuildTarget.StandaloneWindows64,
-                locationPathName = "Builds/ChapterOneEnvironment.exe",
+                locationPathName = "Builds/ChapterOne/THAT NIGHT.exe",
                 options = BuildOptions.None
             });
             Debug.Log("ENVIRONMENT_BUILD " + report.summary.result + " bytes=" + report.summary.totalSize);
@@ -49,8 +50,8 @@ namespace ThatNight.ChapterOne.Editor
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64, new[]{ GraphicsDeviceType.Direct3D11 });
 
-            // Static Batching ON for Intel UHD 630 performance, Dynamic Batching ON
-            PlayerSettings.SetStaticBatchingForPlatform(BuildTarget.StandaloneWindows64, true);
+            // Explicit spatial render batches replace Unity's memory-heavy static batching.
+            PlayerSettings.SetStaticBatchingForPlatform(BuildTarget.StandaloneWindows64, false);
             PlayerSettings.SetDynamicBatchingForPlatform(BuildTarget.StandaloneWindows64, true);
 
             QualitySettings.SetQualityLevel(2, false);
@@ -103,6 +104,12 @@ namespace ThatNight.ChapterOne.Editor
             }
             review.grade = grade;
             review.SetView(0);
+
+            // Apply performance policy after all authored geometry and lights exist.
+            EnvironmentPerformanceOptimizer.ApplyToScene(camera);
+
+            HorrorForestBuilder.Apply();
+            ChapterOneDirectorBuilder.Setup();
 
             EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), Scene);
             EditorBuildSettings.scenes = new[]{ new EditorBuildSettingsScene(Scene, true) };

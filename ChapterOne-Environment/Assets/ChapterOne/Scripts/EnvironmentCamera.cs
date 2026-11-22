@@ -54,20 +54,33 @@ namespace ThatNight.ChapterOne
         bool showHelp=true,review;int view;float yaw,pitch;
         void Start()
         {
-            QualitySettings.vSyncCount=0;Application.targetFrameRate=30;SetView(0);
+            QualitySettings.vSyncCount=0;
+            Application.targetFrameRate=30;
+            EnvironmentPerformance.Apply(GetComponent<Camera>());
+            SetView(0);
             review=Array.Exists(Environment.GetCommandLineArgs(),a=>a=="-environmentReview");
             if(review)StartCoroutine(Review());
+            else if(Array.Exists(Environment.GetCommandLineArgs(),a=>a=="-forestPreview"))
+            {
+                lighting.ApplyStage(AtmosphereStage.NightHorror);
+                var explorer=GetComponent<ForestExploration>();
+                if(explorer){explorer.Visit(0);explorer.SetWalking(true);explorer.flashlight.enabled=true;}
+            }
         }
         public void SetView(int index)
         {
             view=index;transform.position=Positions[index];transform.LookAt(Targets[index]);yaw=transform.eulerAngles.y;pitch=transform.eulerAngles.x;
         }
+        public void SyncLook() { yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x); }
         void Update()
         {
-            if(review)return;
+            if(review||GameplayReview.IsRunning)return;
             if(Input.GetKeyDown(KeyCode.Escape)){Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
             if(Input.GetKeyDown(KeyCode.H))showHelp=!showHelp;
             if(Input.GetKeyDown(KeyCode.N))lighting.Apply(!lighting.daylight);
+            if(Input.GetKeyDown(KeyCode.F12))Capture("manual-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+            var explorer=GetComponent<ForestExploration>();
+            if(explorer && explorer.Walking)return;
             if(Input.GetKeyDown(KeyCode.R))SetView(10);
             if(Input.GetKeyDown(KeyCode.M))SetView(11);
             if(Input.GetKeyDown(KeyCode.T))SetView(12);
@@ -80,7 +93,6 @@ namespace ThatNight.ChapterOne
             if(Input.GetKeyDown(KeyCode.F))SetView(19);
             for(int i=0;i<9;i++)if(Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1+i)))SetView(i);
             if(Input.GetKeyDown(KeyCode.Alpha0))SetView(9);
-            if(Input.GetKeyDown(KeyCode.F12))Capture("manual-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"));
             if(Input.GetMouseButton(1))
             {
                 Cursor.lockState=CursorLockMode.Locked;Cursor.visible=false;
@@ -91,15 +103,29 @@ namespace ThatNight.ChapterOne
             else {Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
         }
         void OnRenderImage(RenderTexture source,RenderTexture target)
-        {if(grade)Graphics.Blit(source,target,grade);else Graphics.Blit(source,target);}
+        {
+            if(grade)
+            {
+                grade.SetFloat("_Horror",lighting && lighting.currentStage==AtmosphereStage.NightHorror?1:0);
+                Graphics.Blit(source,target,grade);
+            }
+            else Graphics.Blit(source,target);
+        }
         void OnGUI()
         {
+            // Do NOT show debug study HUD during game flow when Director is running
+            if (ChapterOneDirector.Instance != null) return;
+
+            var interactions=GetComponent<PlayerInteraction>();
+            if(interactions&&interactions.explorer&&interactions.explorer.Walking)return;
             if(review){GUI.Label(new Rect(18,18,650,30),"Automatic environment review — please leave this window open; it closes when finished.");return;}
             if(!showHelp)return;
-            GUI.color=new Color(.035f,.04f,.04f,.88f);GUI.DrawTexture(new Rect(18,18,480,89),Texture2D.whiteTexture);GUI.color=Color.white;
+            GUI.color=new Color(.035f,.04f,.04f,.88f);GUI.DrawTexture(new Rect(18,18,570,112),Texture2D.whiteTexture);GUI.color=Color.white;
             GUI.Label(new Rect(32,27,450,24),"THAT NIGHT  /  CHAPTER ONE  /  ENVIRONMENT STUDY");
             GUI.Label(new Rect(32,51,450,22),"1 Entrance  3 Tables  6 Overview  P Photo  V Dance  C Cooks  N Day");
-            GUI.Label(new Rect(32,74,450,22),"Hold right mouse + WASD move · Q/E down/up · Shift faster");
+            var explorer=GetComponent<ForestExploration>();
+            GUI.Label(new Rect(32,74,540,22),explorer&&explorer.Walking?"WASD Walk · Shift faster · Right click capture mouse · Esc release":"Hold right mouse + WASD move · Q/E down/up · Shift faster");
+            if(explorer)GUI.Label(new Rect(32,97,540,22),(explorer.Walking?"WALK":"FLY")+"  X Walk / Fly   F8 Forest views   L Flashlight   K Horror night   H Hide");
         }
         string OutputFolder()
         {string root=Application.isEditor?Path.GetDirectoryName(Application.dataPath):Path.GetFullPath(Path.Combine(Application.dataPath,"../.."));string folder=Path.Combine(root,"Review");Directory.CreateDirectory(folder);return folder;}

@@ -1,10 +1,10 @@
-﻿using UnityEngine;
+using UnityEngine;
 using static ThatNight.ChapterOne.Editor.MeshFactory;
 using S = ThatNight.ChapterOne.Editor.SurfaceLibrary;
 
 namespace ThatNight.ChapterOne.Editor
 {
-    public static class PropsBuilder
+    public static partial class PropsBuilder
     {
         public static void Table(Vector3 p, Vector2 size, float height, Material mat)
         {
@@ -113,20 +113,82 @@ namespace ThatNight.ChapterOne.Editor
             ModelCombiner.CombineModel(thermosGroup, addCollider: true);
         }
 
-        public static void AltarShelf(Vector3 p)
+        public static void AltarShelf(Vector3 p, float yaw = 0f)
         {
             var old = Parent;
-            Parent = ModelGroup("Ancestral altar shelf - Ban-lor", p);
-            Box("Altar shelf deck", Vector3.zero, new Vector3(.24f, .045f, 1.1f), S.DarkWood, true);
+            Parent = ModelGroup("Authentic Cambodian Buddhist & Ancestral Altar - Riean Preah", p);
+            if (yaw != 0f) Parent.localEulerAngles = new Vector3(0, yaw, 0);
+
+            var goldLeaf = S.Plain("Altar gold leaf leaf", new Color(.88f, .74f, .18f), .50f);
+            var beeswax = S.Plain("Yellow beeswax taper candle", new Color(.94f, .78f, .16f), .15f);
+
+            // Carved teak altar shelf deck with curved brackets
+            Box("Altar shelf deck", Vector3.zero, new Vector3(.32f, .045f, 1.35f), S.DarkWood, true);
+            Box("Altar carved front molding", new Vector3(.15f, -.01f, 0), new Vector3(.025f, .065f, 1.37f), S.Carving);
             for (int s = -1; s <= 1; s += 2)
-                Beam("Altar shelf bracket", new Vector3(0, -.22f, s * .42f), new Vector3(.08f, -.02f, s * .42f), .035f, S.DarkWood);
-            Box("Ancestral portrait frame", new Vector3(.05f, .22f, 0), new Vector3(.025f, .34f, .28f), S.DarkWood);
-            Box("Portrait photo print", new Vector3(.065f, .22f, 0), new Vector3(.008f, .28f, .22f), S.Cream);
-            Lathe("Altar incense cup", new Vector3(.04f, .045f, -.24f), new[]{ new Vector2(0, 0), new Vector2(.035f, 0), new Vector2(.045f, .045f) }, S.Brass, 14);
-            for (int i = -1; i <= 1; i++)
-                Beam("Red altar incense", new Vector3(.04f, .08f, -.24f + i * .012f), new Vector3(.04f, .24f, -.24f + i * .018f), .003f, S.Pink);
-            Beam("Small altar candle", new Vector3(.04f, .045f, .24f), new Vector3(.04f, .14f, .24f), .014f, S.Pink);
-            Lathe("Brass water cup", new Vector3(.04f, .045f, .35f), new[]{ new Vector2(0, 0), new Vector2(.025f, 0), new Vector2(.03f, .035f) }, S.Brass, 12);
+                Beam("Altar shelf bracket", new Vector3(0, -.26f, s * .52f), new Vector3(.12f, -.02f, s * .52f), .04f, S.DarkWood);
+
+            // 1. Centerpiece: Gilded Seated Buddha Statue (Preah Put) in Meditation
+            var buddhaPos = new Vector3(.04f, .023f, 0);
+            // Tiered lotus pedestal
+            Lathe("Buddha lotus throne pedestal", buddhaPos, new[]{
+                new Vector2(.10f, 0), new Vector2(.12f, .025f), new Vector2(.09f, .05f), new Vector2(.11f, .075f)
+            }, goldLeaf, 18);
+            // Seated torso and draped monk robes
+            Ball("Buddha crossed legs", buddhaPos + Vector3.up * .09f, new Vector3(.20f, .06f, .14f), goldLeaf);
+            Ball("Buddha torso robe", buddhaPos + Vector3.up * .18f, new Vector3(.11f, .14f, .085f), goldLeaf);
+            Ball("Buddha serene head", buddhaPos + Vector3.up * .28f, Vector3.one * .065f, goldLeaf);
+            Ball("Buddha topknot ushnisha", buddhaPos + Vector3.up * .33f, new Vector3(.025f, .04f, .025f), goldLeaf);
+
+            // 2. Twin Brass Candlesticks (Cheung Tean) with Yellow Beeswax Taper Candles
+            for (int c = -1; c <= 1; c += 2)
+            {
+                var candlePos = new Vector3(.05f, .023f, c * .48f);
+                Lathe("Brass candlestick holder", candlePos, new[]{
+                    new Vector2(.045f, 0), new Vector2(.016f, .06f), new Vector2(.035f, .10f)
+                }, S.Brass, 14);
+                Cylinder("Yellow beeswax candle", candlePos + Vector3.up * .10f, .013f, .18f, beeswax, 10);
+                Ball("Candle burning flame glow", candlePos + Vector3.up * .29f, new Vector3(.014f, .026f, .014f), S.Bulb);
+            }
+
+            // 3. Brass Incense Burner Urn (Cheung Ka-nham) with Red Joss Sticks
+            var urnPos = new Vector3(.09f, .023f, -.18f);
+            Lathe("Incense burner brass urn", urnPos, new[]{
+                new Vector2(.055f, 0), new Vector2(.08f, .05f), new Vector2(.072f, .075f)
+            }, S.Brass, 16);
+            Cylinder("Incense grey ash bed", urnPos + Vector3.up * .068f, .07f, .005f, S.Cream, 14);
+            for (int inc = -1; inc <= 1; inc++)
+            {
+                var stickStart = urnPos + new Vector3(inc * .015f, .07f, inc * .008f);
+                var stickEnd = stickStart + new Vector3(inc * .02f, .22f, 0);
+                Beam("Red incense stick", stickStart, stickEnd, .0035f, S.Plain("Crimson incense", new Color(.78f, .16f, .18f), .1f));
+                Ball("Incense burning ember", stickEnd, Vector3.one * .007f, S.Bulb);
+            }
+
+            // 4. Pure Offering Water Cup (Phtil Teuk Preah)
+            var waterPos = new Vector3(.09f, .023f, .18f);
+            Lathe("Pure water offering cup", waterPos, new[]{
+                new Vector2(.025f, 0), new Vector2(.042f, .035f), new Vector2(.040f, .065f)
+            }, S.Porcelain, 14);
+            Cylinder("Clean offering water", waterPos + Vector3.up * .055f, .038f, .005f, S.Water, 12);
+
+            // 5. Fresh Pink Lotus Blossom Plates (Phka Chhouk)
+            for (int pSide = -1; pSide <= 1; pSide += 2)
+            {
+                var platePos = new Vector3(.08f, .023f, pSide * .32f);
+                Lathe("Lotus offering saucer", platePos, new[]{ new Vector2(0, 0), new Vector2(.055f, 0), new Vector2(.07f, .02f) }, S.Porcelain, 12);
+                Ball("Folded pink lotus bud", platePos + Vector3.up * .035f, new Vector3(.065f, .085f, .065f), S.Pink);
+                Ball("Lotus green stem base", platePos + Vector3.up * .015f, new Vector3(.03f, .015f, .03f), S.Leaf);
+            }
+
+            // 6. Twin Framed Ancestral Portraits with Gold Foil Trim
+            for (int f = -1; f <= 1; f += 2)
+            {
+                var framePos = new Vector3(-.08f, .26f, f * .24f);
+                Box("Ancestral gold portrait frame", framePos, new Vector3(.025f, .36f, .28f), goldLeaf);
+                Box("Vintage sepia photo print", framePos + new Vector3(.012f, 0, 0), new Vector3(.004f, .30f, .22f), S.Plain("Vintage ancestor portrait", new Color(.88f, .84f, .76f), .1f));
+            }
+
             var altarGroup = Parent;
             Parent = old;
             ModelCombiner.CombineModel(altarGroup, addCollider: true);
@@ -196,21 +258,51 @@ namespace ThatNight.ChapterOne.Editor
         public static void Chair(Vector3 p, float yaw)
         {
             var old = Parent;
-            Parent = ModelGroup("Red plastic chair", p);
+            Parent = ModelGroup("Wedding banquet chair with fabric cover", p);
             Parent.localEulerAngles = new Vector3(0, yaw, 0);
+
+            // Inner chair structural frame (underneath fabric)
             var plastic = S.Plain("Faded red plastic", new Color(.33f, .075f, .055f), .22f);
-            Box("Molded seat", new Vector3(0, .44f, 0), new Vector3(.43f, .045f, .44f), plastic);
+            Box("Molded seat core", new Vector3(0, .44f, 0), new Vector3(.43f, .045f, .44f), plastic);
             for (int x = -1; x <= 1; x += 2)
                 for (int z = -1; z <= 1; z += 2)
                     Beam("Splayed chair leg", new Vector3(x * .22f, 0, z * .23f), new Vector3(x * .17f, .44f, z * .17f), .044f, plastic);
             for (int s = -1; s <= 1; s += 2)
                 Beam("Back upright", new Vector3(s * .18f, .43f, .17f), new Vector3(s * .20f, .94f, .26f), .045f, plastic);
-            for (int i = 0; i < 5; i++)
-            {
-                float x = (i - 2) * .07f;
-                Beam("Slotted chair back", new Vector3(x, .5f, .19f), new Vector3(x, .88f + .07f * (1 - Mathf.Abs(x) / .2f), .25f), .035f, plastic);
-            }
-            Grid("Rounded chair back crest", 16, 2, (u, v) => new Vector3((u - .5f) * .42f, .88f + Mathf.Sin(u * Mathf.PI) * .08f + v * .045f, .26f), plastic, Vector2.one, true);
+
+            // AUTHENTIC CAMBODIAN WEDDING FABRIC ("FIBER") SLIPCOVER (matching table cloth):
+            // 1. Padded fabric seat cover
+            Box("Fabric seat cover", new Vector3(0, .45f, 0), new Vector3(.46f, .05f, .46f), S.Pink);
+
+            // 2. Full-length draped fabric skirt covering the 4 legs down to the ground
+            // Front skirt drape
+            Grid("Front fabric skirt", 16, 6, (u, v) => new Vector3((u - .5f) * .46f + Mathf.Sin(u * Mathf.PI * 4) * .015f * (1 - v), .44f - v * .41f, -.23f - Mathf.Sin(v * Mathf.PI * .5f) * .015f), S.Pink, new Vector2(1, 2), true);
+            // Rear skirt drape
+            Grid("Rear fabric skirt", 16, 6, (u, v) => new Vector3((u - .5f) * .46f + Mathf.Sin(u * Mathf.PI * 4) * .015f * (1 - v), .44f - v * .41f, .24f + Mathf.Sin(v * Mathf.PI * .5f) * .015f), S.Pink, new Vector2(1, 2), true);
+            // Left skirt drape
+            Grid("Left fabric skirt", 16, 6, (u, v) => new Vector3(-.23f - Mathf.Sin(v * Mathf.PI * .5f) * .015f, .44f - v * .41f, (u - .5f) * .46f + Mathf.Sin(u * Mathf.PI * 4) * .015f * (1 - v)), S.Pink, new Vector2(1, 2), true);
+            // Right skirt drape
+            Grid("Right fabric skirt", 16, 6, (u, v) => new Vector3(.23f + Mathf.Sin(v * Mathf.PI * .5f) * .015f, .44f - v * .41f, (u - .5f) * .46f + Mathf.Sin(u * Mathf.PI * 4) * .015f * (1 - v)), S.Pink, new Vector2(1, 2), true);
+
+            // 3. Fitted fabric backrest slipcover (enveloping front, back, and curved crest)
+            Box("Fabric backrest front", new Vector3(0, .69f, .205f), new Vector3(.44f, .50f, .03f), S.Pink);
+            Box("Fabric backrest rear", new Vector3(0, .69f, .245f), new Vector3(.44f, .50f, .03f), S.Pink);
+            Grid("Fabric backrest crest", 16, 3, (u, v) => new Vector3((u - .5f) * .44f, .90f + Mathf.Sin(u * Mathf.PI) * .07f + v * .03f, .225f), S.Pink, Vector2.one, true);
+
+            // 4. Ceremonial Silk Ribbon Sash & Bow Rosette
+            var goldSilk = S.Plain("Khmer bridal gold silk", new Color(.82f, .65f, .18f), .45f, .25f);
+            var crimsonSilk = S.Plain("Ceremonial crimson silk", new Color(.65f, .12f, .16f), .35f, .15f);
+
+            // Wide gold silk sash band around the backrest
+            Box("Backrest gold silk sash band", new Vector3(0, .62f, .225f), new Vector3(.46f, .085f, .06f), goldSilk);
+
+            // Ornate bow knot and ribbon tails on the back
+            Ball("Sash knot rosette", new Vector3(0, .62f, .27f), Vector3.one * .07f, crimsonSilk);
+            Tube("Bow loop left", new Vector3(-.07f, .62f, .28f), .055f, .016f, goldSilk, Quaternion.Euler(0, 30f, 0), 12);
+            Tube("Bow loop right", new Vector3(.07f, .62f, .28f), .055f, .016f, goldSilk, Quaternion.Euler(0, -30f, 0), 12);
+            Beam("Bow ribbon tail 1", new Vector3(-.03f, .60f, .28f), new Vector3(-.06f, .38f, .29f), .035f, goldSilk);
+            Beam("Bow ribbon tail 2", new Vector3(.03f, .60f, .28f), new Vector3(.06f, .38f, .29f), .035f, goldSilk);
+
             var chairGroup = Parent;
             Parent = old;
             ModelCombiner.CombineModel(chairGroup, addCollider: true);
@@ -290,25 +382,48 @@ namespace ThatNight.ChapterOne.Editor
             Parent = ModelGroup("2006 classic button mobile phone", p);
             Parent.localEulerAngles = new Vector3(0, yaw, 0);
 
-            var bodyMat = S.Plain("Phone casing", new Color(.12f, .13f, .14f), .35f);
-            var screenMat = S.Plain("Phone monochrome LCD", new Color(.22f, .38f, .22f), .90f);
-            var keyMat = S.Plain("Phone keypad button", new Color(.24f, .25f, .26f), .18f);
+            var bodyMat = S.Plain("Nokia graphite casing", new Color(.16f, .18f, .22f), .40f);
+            var screenMat = S.Plain("Nokia monochrome LCD", new Color(.35f, .55f, .32f), .90f);
+            var keyMat = S.Plain("Nokia rubber keypad", new Color(.22f, .24f, .25f), .18f);
+            var callGreen = S.Plain("Nokia call key green", new Color(.18f, .62f, .22f), .25f);
+            var endRed = S.Plain("Nokia end key red", new Color(.72f, .18f, .18f), .25f);
 
-            Box("Phone body casing", Vector3.up * .009f, new Vector3(.052f, .018f, .115f), bodyMat);
-            Box("Screen bezel", new Vector3(0, .0185f, .022f), new Vector3(.040f, .002f, .038f), S.Metal);
-            Box("Monochrome LCD display", new Vector3(0, .0196f, .022f), new Vector3(.034f, .001f, .030f), screenMat);
-            Box("Earpiece speaker slit", new Vector3(0, .0185f, .047f), new Vector3(.014f, .002f, .003f), S.Black);
-            Box("Nav key", new Vector3(0, .0192f, -.005f), new Vector3(.022f, .003f, .014f), S.Metal);
+            // Ergonomic candybar body with rounded profile (approx 10.5cm x 4.4cm x 1.8cm)
+            Box("Nokia body casing", Vector3.up * .009f, new Vector3(.046f, .017f, .106f), bodyMat);
+            // Top antenna taper / speaker brow
+            Box("Nokia top brow", new Vector3(0, .014f, .048f), new Vector3(.042f, .008f, .014f), bodyMat);
+            Box("Earpiece speaker slit", new Vector3(0, .0182f, .046f), new Vector3(.012f, .002f, .003f), S.Black);
+            Box("Nokia emblem plate", new Vector3(0, .0180f, .038f), new Vector3(.024f, .0015f, .007f), S.Metal);
 
+            // Backlit monochrome LCD screen (greenish tint)
+            Box("Screen glass bezel", new Vector3(0, .0182f, .018f), new Vector3(.038f, .002f, .030f), S.Metal);
+            Box("Monochrome LCD display", new Vector3(0, .0192f, .018f), new Vector3(.033f, .001f, .025f), screenMat);
+
+            // Navigation rocker & soft keys
+            Box("Nav key rocker", new Vector3(0, .0190f, -.004f), new Vector3(.018f, .0025f, .012f), S.Metal);
+            Box("Call answer key green", new Vector3(-.014f, .0188f, -.004f), new Vector3(.009f, .0025f, .009f), callGreen);
+            Box("Call end key red", new Vector3(.014f, .0188f, -.004f), new Vector3(.009f, .0025f, .009f), endRed);
+
+            // 3x4 silicone rubber numeric keypad
             for (int r = 0; r < 4; r++)
                 for (int c = -1; c <= 1; c++)
                 {
-                    Box("Numeric key", new Vector3(c * .012f, .0195f, -.019f - r * .0085f), new Vector3(.010f, .0025f, .0065f), keyMat);
+                    Box("Numeric key", new Vector3(c * .011f, .0192f, -.018f - r * .0080f), new Vector3(.0095f, .0025f, .0065f), keyMat);
                 }
+
+            // Bottom mic hole & charger pin
+            Box("Microphone hole", new Vector3(0, .008f, -.053f), new Vector3(.003f, .003f, .002f), S.Black);
+            // Lanyard eyelet corner
+            Box("Lanyard corner eyelet", new Vector3(-.020f, .009f, .050f), new Vector3(.005f, .006f, .006f), bodyMat);
 
             var phoneGroup = Parent;
             Parent = old;
             ModelCombiner.CombineModel(phoneGroup, addCollider: true);
+
+            var nokia = phoneGroup.gameObject.AddComponent<NokiaHandPhone>();
+            nokia.ringtoneClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/ChapterOne/Audio/NokiaRingtone2006.wav");
+            nokia.vibrationClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/ChapterOne/Audio/NokiaVibration.wav");
+            nokia.callEndedClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/ChapterOne/Audio/NokiaCallEnded.wav");
         }
 
         public static void BridalAttire(Vector3 p, float yaw)

@@ -19,6 +19,10 @@ namespace ThatNight.ChapterOne
         public Material sky;
         public bool daylight;
         public AtmosphereStage currentStage = AtmosphereStage.NightHorror;
+        [Header("Forest night visibility")]
+        [Tooltip("Exponential fog: .055 leaves about 25% visibility at 25 metres and 6% at 50 metres.")]
+        [Range(.02f,.09f)] public float nightFogDensity = .055f;
+        [Range(0,.5f)] public float nightMoonIntensity = .18f;
 
         void Start()
         {
@@ -134,19 +138,19 @@ namespace ThatNight.ChapterOne
 
                 case AtmosphereStage.NightHorror:
                     // Blair Witch & The Forest Horror: Silvery-blue moonlight, deep contrast, atmospheric fog
-                    RenderSettings.ambientSkyColor = new Color(.09f, .13f, .22f);
-                    RenderSettings.ambientEquatorColor = new Color(.05f, .07f, .11f);
-                    RenderSettings.ambientGroundColor = new Color(.025f, .032f, .045f);
-                    RenderSettings.fogColor = new Color(.018f, .028f, .048f);
-                    RenderSettings.fogDensity = .015f;
-                    RenderSettings.reflectionIntensity = .20f;
+                    RenderSettings.ambientSkyColor = new Color(.055f, .085f, .09f);
+                    RenderSettings.ambientEquatorColor = new Color(.025f, .04f, .035f);
+                    RenderSettings.ambientGroundColor = new Color(.012f, .018f, .014f);
+                    RenderSettings.fogColor = new Color(.018f, .028f, .03f);
+                    RenderSettings.fogDensity = nightFogDensity;
+                    RenderSettings.reflectionIntensity = .06f;
 
                     if (key != null)
                     {
-                        key.color = new Color(.65f, .78f, .96f); // Silvery moonlight
-                        key.intensity = .85f;                   // Crisp moonlight casting highlights on path & roofs
-                        key.transform.rotation = Quaternion.Euler(52, -135, 0);
-                        key.shadowStrength = .85f;
+                        key.color = new Color(.58f, .81f, .86f);
+                        key.intensity = nightMoonIntensity;
+                        key.transform.rotation = Quaternion.Euler(32, -48, 0);
+                        key.shadowStrength = .82f;
                     }
                     SetPracticals(true, 0.40f);
                     break;

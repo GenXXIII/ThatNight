@@ -28,6 +28,11 @@ Shader "ThatNight/VillageGround" {
    fixed3 grass=tex2D(_GrassTex,uv*.83).rgb*half3(.53,.62,.40);
    half blend=saturate(IN.color.g+(detail-.5)*.18);
    fixed3 albedo=lerp(soil,grass,blend);
+   // Damp, broken leaf cover outside the protected wedding/house clearing.
+   float forest=smoothstep(40,85,length(IN.worldPos.xz-float2(0,15)));
+   half breakup=tex2D(_MainTex,uv*.29).r;
+   fixed3 forestFloor=lerp(grass*.52,soil*half3(.64,.72,.64),smoothstep(.22,.65,breakup));
+   albedo=lerp(albedo,forestFloor,forest*.82);
    albedo*=lerp(1,.67,IN.color.b);
    albedo*=lerp(1,1.12,IN.color.a);
    o.Albedo=albedo*lerp(.75,1,IN.color.r);

@@ -98,18 +98,8 @@ namespace ThatNight.ChapterOne.Editor
             Parent = prevParent;
             ModelCombiner.CombineModel(gateGroup, addCollider: true);
 
-            // 2. Ceremonial Red Carpet Runner Aisle
-            var carpetGroup = ModelGroup("Entrance red carpet runner aisle", Vector3.zero);
-            prevParent = Parent;
-            Parent = carpetGroup;
-            Grid("Ceremonial entrance red carpet", 16, 24, (u, v) => new Vector3((u - .5f) * 2.6f, .015f, -3.8f + v * 7.5f), S.Pink, new Vector2(2, 6), true);
-            Parent = prevParent;
-            ModelCombiner.CombineModel(carpetGroup, addCollider: false);
-
-            // 3. Wedding Blessing Reception Table (Tok Krap Sla)
+            // 2. Entrance greeting photo easel & greeting desk
             BuildReceptionDesk(new Vector3(3.2f, 0, -.8f));
-
-            // 4. Gilded Wedding Portrait Photo Easel
             BuildPhotoEasel(new Vector3(-2.8f, 0, -.8f));
 
             Parent = old;
@@ -164,27 +154,204 @@ namespace ThatNight.ChapterOne.Editor
             var prevParent = Parent;
             Parent = easelGroup;
 
-            // Timber tripod artist easel
-            Beam("Easel front leg left", new Vector3(-.32f, 0, -.22f), new Vector3(0, 1.85f, 0), .035f, S.DarkWood);
-            Beam("Easel front leg right", new Vector3(.32f, 0, -.22f), new Vector3(0, 1.85f, 0), .035f, S.DarkWood);
-            Beam("Easel back leg", new Vector3(0, 0, .45f), new Vector3(0, 1.85f, 0), .032f, S.DarkWood);
-            Beam("Easel horizontal picture shelf", new Vector3(-.42f, .85f, -.14f), new Vector3(.42f, .85f, -.14f), .04f, S.DarkWood);
+            var darkWood = S.DarkWood;
+            var brassMat = S.Brass;
+            var creamMat = S.Cream;
+            var goldSilk = S.Plain("Carpet gold piping", new Color(.82f, .65f, .18f), .45f, .25f);
+            var jasmineMat = S.Plain("Jasmine white", Color.white, .2f);
+            var marigoldMat = S.Plain("Marigold flower yellow", new Color(.95f, .72f, .08f), .1f);
+            var lotusMat = S.Plain("Lotus petal pink", new Color(.88f, .42f, .55f), .2f);
 
-            // Ornate gilded picture frame with official 2006 wedding portrait
-            var frameCenter = new Vector3(0, 1.25f, -.10f);
-            var frameRot = Quaternion.Euler(-12, 0, 0);
-            Box("Gilded portrait frame", frameCenter, frameRot * new Vector3(.72f, .94f, .05f), S.Brass, true);
-            Box("Studio couple wedding photo", frameCenter + frameRot * new Vector3(0, 0, -.03f), frameRot * new Vector3(.60f, .82f, .01f), S.Cream);
-
-            // Red silk ribbon bow and fresh marigold garland on top corner of the portrait
-            WeddingYardBuilder.Rosette(frameCenter + frameRot * new Vector3(.32f, .44f, -.04f), .14f);
-            for (int b = 0; b < 5; b++)
+            // Load authentic Cambodian wedding portrait texture
+            var portraitTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ChapterOne/Textures/CambodianWeddingPortrait.jpg");
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("ThatNight/WeatheredSurface") ?? Shader.Find("Standard");
+            var portraitMat = new Material(shader) { name = "CambodianWeddingPortrait_Material" };
+            if (portraitTex != null)
             {
-                Ball("Portrait marigold bloom", frameCenter + frameRot * new Vector3(.32f, .44f - b * .12f, -.04f), Vector3.one * .055f, S.Plain("Marigold flower yellow", new Color(.94f, .72f, .08f), .1f));
+                if (portraitMat.HasProperty("_BaseMap")) portraitMat.SetTexture("_BaseMap", portraitTex);
+                if (portraitMat.HasProperty("_MainTex")) portraitMat.SetTexture("_MainTex", portraitTex);
+                if (portraitMat.HasProperty("_BaseColor")) portraitMat.SetColor("_BaseColor", Color.white);
+                if (portraitMat.HasProperty("_Color")) portraitMat.SetColor("_Color", Color.white);
+                portraitMat.mainTexture = portraitTex;
+                portraitMat.color = Color.white;
+                portraitMat.SetFloat("_Smoothness", 0.30f);
+            }
+            else
+            {
+                portraitMat = creamMat;
+            }
+
+            // 1. Dedicated Circular Display Mat on Ground
+            Cylinder("Photo display ground mat", Vector3.up * 0.005f, 1.15f, 0.006f, S.Pink, 32);
+
+            // 2. Artist Exhibition Easel (Positioned BEHIND the picture frame, tilted back slightly)
+            float shelfY = 0.86f;
+            float tiltAngle = -8f;
+            var shelfRot = Quaternion.Euler(tiltAngle, 0, 0);
+
+            // Easel tripod legs BEHIND the display ledge so they never cross in front of the portrait!
+            // Legs descend from Y = 2.15m at Z = +0.02m down to ground at Z = +0.18m (front legs) and Z = +0.75m (back leg)
+            Beam("Easel center mast", new Vector3(0, 0.05f, 0.16f), new Vector3(0, 2.20f, -0.02f), 0.045f, darkWood);
+            Beam("Easel left leg", new Vector3(-0.46f, 0, 0.16f), new Vector3(0, 2.05f, 0.02f), 0.04f, darkWood);
+            Beam("Easel right leg", new Vector3(0.46f, 0, 0.16f), new Vector3(0, 2.05f, 0.02f), 0.04f, darkWood);
+            Beam("Easel back stay", new Vector3(0, 0, 0.72f), new Vector3(0, 1.95f, 0.04f), 0.035f, darkWood);
+
+            // Horizontal display shelf ledge sitting in front of the mast
+            var shelfPos = new Vector3(0, shelfY, 0.02f);
+            Box("Picture display shelf", shelfPos, new Vector3(1.02f, 0.045f, 0.14f), darkWood);
+            Box("Shelf front security lip", shelfPos + new Vector3(0, 0.03f, -0.06f), new Vector3(1.02f, 0.035f, 0.025f), brassMat);
+
+            // 3. Grand Sculpted Gilded Picture Frame (Resting ON the shelf, facing incoming guests at -Z)
+            var frameCenter = new Vector3(0, 1.48f, -0.06f);
+            float frameW = 0.88f, frameH = 1.16f;
+
+            var frameObj = new GameObject("Gilded Wedding Picture Frame");
+            frameObj.transform.SetParent(easelGroup.transform, false);
+            frameObj.transform.localPosition = frameCenter;
+            frameObj.transform.localRotation = shelfRot;
+            frameObj.AddComponent<ThatNight.ChapterOne.ModelRoot>();
+
+            Parent = frameObj.transform;
+
+            // Deep gilded frame molding
+            Box("Frame top molding", new Vector3(0, frameH * 0.5f, 0), new Vector3(frameW + 0.12f, 0.10f, 0.06f), brassMat);
+            Box("Frame bottom molding", new Vector3(0, -frameH * 0.5f, 0), new Vector3(frameW + 0.12f, 0.10f, 0.06f), brassMat);
+            Box("Frame left molding", new Vector3(-frameW * 0.5f, 0, 0), new Vector3(0.10f, frameH, 0.06f), brassMat);
+            Box("Frame right molding", new Vector3(frameW * 0.5f, 0, 0), new Vector3(0.10f, frameH, 0.06f), brassMat);
+
+            // 4 Filigree corner rosettes on the frame
+            for (int cx = -1; cx <= 1; cx += 2)
+                for (int cy = -1; cy <= 1; cy += 2)
+                {
+                    Ball("Corner filigree", new Vector3(cx * (frameW * 0.5f), cy * (frameH * 0.5f), -0.025f), Vector3.one * 0.08f, brassMat);
+                }
+
+            // Gilded Inner Matting
+            Box("Inner gold matting", new Vector3(0, 0, 0.005f), new Vector3(frameW - 0.04f, frameH - 0.04f, 0.015f), goldSilk);
+
+            // The Authentic Wedding Couple Portrait Canvas (Dedicated properly UV-mapped planar mesh)
+            PortraitCanvas("Wedding couple studio portrait", new Vector3(0, 0, -0.018f), 0.74f, 1.02f, portraitMat);
+
+            // 4. Traditional Cambodian Floral & Silk Decor (Phka Pchong & Silk Bow)
+            Vector3 bowCorner = new Vector3(frameW * 0.5f - 0.02f, frameH * 0.5f + 0.02f, -0.04f);
+            Ball("Rosette center knot", bowCorner, Vector3.one * 0.10f, S.Plain("Bridal crimson silk", new Color(.65f, .12f, .16f), .35f, .15f));
+            for (int petal = 0; petal < 8; petal++)
+            {
+                float a = petal * Mathf.PI / 4f;
+                Ball("Rosette petal", bowCorner + new Vector3(Mathf.Cos(a) * 0.06f, Mathf.Sin(a) * 0.06f, 0), new Vector3(0.08f, 0.09f, 0.04f), S.Pink);
+            }
+
+            // Top floral swag along the top frame edge
+            for (int g = 0; g < 14; g++)
+            {
+                float u = g / 13f;
+                float gx = Mathf.Lerp(-frameW * 0.45f, frameW * 0.45f, u);
+                float gy = frameH * 0.5f + Mathf.Sin(u * Mathf.PI) * 0.04f;
+                Ball("Garland bloom", new Vector3(gx, gy, -0.035f), Vector3.one * 0.045f, g % 2 == 0 ? jasmineMat : marigoldMat);
+            }
+
+            // Cascading jasmine and lotus garland down the right side
+            for (int c = 0; c < 10; c++)
+            {
+                float cy = (frameH * 0.5f) - (c * 0.085f);
+                float cx = frameW * 0.52f + Mathf.Sin(c * 0.5f) * 0.02f;
+                Ball("Cascading lotus bloom", new Vector3(cx, cy, -0.035f), Vector3.one * 0.05f, c % 3 == 0 ? lotusMat : jasmineMat);
+            }
+
+            Beam("Ribbon tail left", bowCorner, bowCorner + new Vector3(-0.06f, -0.45f, 0.02f), 0.035f, S.Pink);
+            Beam("Ribbon tail right", bowCorner, bowCorner + new Vector3(0.03f, -0.62f, 0.02f), 0.035f, goldSilk);
+
+            Parent = easelGroup.transform;
+
+            // 5. Flanking Brass Flower Urn Pedestals
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3 urnP = new Vector3(side * 0.82f, 0, 0.05f);
+                Cylinder("Urn pedestal base", urnP + Vector3.up * 0.04f, 0.16f, 0.08f, darkWood, 16);
+                Cylinder("Urn fluted column", urnP + Vector3.up * 0.28f, 0.06f, 0.40f, brassMat, 16);
+                Lathe("Urn flower dish", urnP + Vector3.up * 0.48f, new[]{
+                    new Vector2(0, 0), new Vector2(0.18f, 0.02f), new Vector2(0.22f, 0.14f), new Vector2(0.14f, 0.18f)
+                }, brassMat, 18);
+                Ball("Urn floral dome", urnP + Vector3.up * 0.62f, new Vector3(0.36f, 0.22f, 0.36f), lotusMat);
+                for (int b = 0; b < 6; b++)
+                {
+                    float a = b * Mathf.PI / 3f;
+                    Ball("Urn lotus bud", urnP + new Vector3(Mathf.Sin(a) * 0.14f, 0.68f, Mathf.Cos(a) * 0.14f), Vector3.one * 0.06f, jasmineMat);
+                }
             }
 
             Parent = prevParent;
             ModelCombiner.CombineModel(easelGroup, addCollider: true);
+        }
+
+        static GameObject PortraitCanvas(string name, Vector3 pos, float width, float height, Material mat)
+        {
+            var go = new GameObject(name);
+            if (Parent != null) go.transform.SetParent(Parent, false);
+            go.transform.localPosition = pos;
+            var mf = go.AddComponent<MeshFilter>();
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = mat;
+
+            var mesh = new Mesh { name = name };
+            float hw = width * 0.5f;
+            float hh = height * 0.5f;
+
+            // Front face facing -Z (towards viewer) and Back face facing +Z
+            Vector3[] vertices = new Vector3[]
+            {
+                new Vector3(-hw, -hh, 0), // 0: bottom-left
+                new Vector3( hw, -hh, 0), // 1: bottom-right
+                new Vector3( hw,  hh, 0), // 2: top-right
+                new Vector3(-hw,  hh, 0), // 3: top-left
+
+                new Vector3( hw, -hh, 0.008f), // 4: back bottom-right
+                new Vector3(-hw, -hh, 0.008f), // 5: back bottom-left
+                new Vector3(-hw,  hh, 0.008f), // 6: back top-left
+                new Vector3( hw,  hh, 0.008f)  // 7: back top-right
+            };
+
+            Vector2[] uvs = new Vector2[]
+            {
+                new Vector2(0, 0),
+                new Vector2(1, 0),
+                new Vector2(1, 1),
+                new Vector2(0, 1),
+
+                new Vector2(0, 0),
+                new Vector2(1, 0),
+                new Vector2(1, 1),
+                new Vector2(0, 1)
+            };
+
+            Vector3[] normals = new Vector3[]
+            {
+                Vector3.back, Vector3.back, Vector3.back, Vector3.back,
+                Vector3.forward, Vector3.forward, Vector3.forward, Vector3.forward
+            };
+
+            Color[] colors = new Color[]
+            {
+                Color.white, Color.white, Color.white, Color.white,
+                Color.white, Color.white, Color.white, Color.white
+            };
+
+            int[] triangles = new int[]
+            {
+                0, 2, 1, 0, 3, 2, // Front face facing -Z
+                4, 6, 5, 4, 7, 6  // Back face facing +Z
+            };
+
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.normals = normals;
+            mesh.colors = colors;
+            mesh.triangles = triangles;
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+
+            mf.sharedMesh = mesh;
+            return go;
         }
     }
 }

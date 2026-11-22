@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
@@ -36,13 +36,22 @@ namespace ThatNight.ChapterOne.Editor
                 for (int sub = 0; sub < mats.Length; sub++)
                 {
                     var mat = (sub < mats.Length && mats[sub] != null) ? mats[sub] : defaultMat;
-                    if (!matGroups.ContainsKey(mat)) matGroups[mat] = new List<CombineInstance>();
+                    if (mat == null)
+                    {
+                        if (SurfaceLibrary.Wood != null) mat = SurfaceLibrary.Wood;
+                        else mat = new Material(Shader.Find("Standard") ?? Shader.Find("Diffuse"));
+                    }
+                    if (!matGroups.TryGetValue(mat, out var materialMeshes))
+                    {
+                        materialMeshes = new List<CombineInstance>();
+                        matGroups.Add(mat, materialMeshes);
+                    }
 
                     var ci = new CombineInstance();
                     ci.mesh = mf.sharedMesh;
                     ci.subMeshIndex = Mathf.Clamp(sub, 0, mf.sharedMesh.subMeshCount - 1);
                     ci.transform = modelRoot.worldToLocalMatrix * r.transform.localToWorldMatrix;
-                    matGroups[mat].Add(ci);
+                    materialMeshes.Add(ci);
                 }
             }
 
@@ -70,8 +79,11 @@ namespace ThatNight.ChapterOne.Editor
             finalMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
             finalMesh.CombineMeshes(submeshCombines.ToArray(), false, false);
             finalMesh.RecalculateBounds();
-            finalMesh.RecalculateNormals();
-            finalMesh.RecalculateTangents();
+
+            // CombineMeshes copied the source normals and tangents. Recalculating them
+            // here was expensive during every regeneration and could soften hard edges.
+            foreach (var submeshCombine in submeshCombines)
+                UnityEngine.Object.DestroyImmediate(submeshCombine.mesh);
 
             // Destroy child geometry objects (keep any nested ModelRoot or functional children)
             var toDestroy = new List<GameObject>();
@@ -127,7 +139,7 @@ namespace ThatNight.ChapterOne.Editor
                 }
             }
 
-            modelRoot.gameObject.isStatic = true;
+            modelRoot.gameObject.isStatic = false;
             return modelRoot.gameObject;
         }
 

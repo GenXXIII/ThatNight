@@ -20,14 +20,66 @@ namespace ThatNight.ChapterOne.Editor
             // 1. Handcrafted Cambodian Timber Canopy Bed with Nuptial Decorations
             Bed(bedding, bridal);
 
-            // 2. Teak Wardrobe with stacked wedding gift baskets
-            Wardrobe(new Vector3(2.2f, 0, .85f), bridal);
+            if (bridal)
+            {
+                // 2. Teak Wardrobe with stacked wedding gift baskets
+                Wardrobe(new Vector3(2.846f, 0.000f, 1.379f), 356.9f, bridal: true);
 
-            // 3. Dressing Table & Mirror (Scene 04 Preparation Area adorned with Wedding Relics)
-            BuildDressingTable(new Vector3(2.1f, 0, -.8f), bridal);
+                // 3. Dressing Table & Mirror (Scene 04 Preparation Area adorned with Wedding Relics)
+                BuildDressingTable(new Vector3(3.322f, 0.000f, -2.331f), 96.1f, bridal: true);
 
-            // 4. Bedside Table with Enamel Pitcher & Matrimonial Brass Lantern
-            var tableGroup = ModelGroup("Bedside wooden nightstand table", new Vector3(-2.2f, 0, .55f));
+                // 4. Bedside Table with Enamel Pitcher & Authentic Cambodian Kerosene Lantern (Changkheang Praeng Kart)
+                BuildNightstand(new Vector3(-2.205f, 0.000f, 0.965f));
+                BuildPitcher(new Vector3(-2.214f, 0.490f, 1.104f));
+                BuildKeroseneLamp(new Vector3(-2.236f, 0.523f, 0.807f));
+
+                // 5. Handwoven Wild Reed Floor Mat & Red Silk Runner
+                ReedMat(new Vector3(-0.900f, 0.015f, -1.900f), bridal: true);
+
+                // Traditional bamboo clothes hanging rail
+                BuildClothesDryingRack(new Vector3(-2.200f, 0.000f, 1.350f));
+
+                // 6. Travel Trunk / Chest
+                Storage(new Vector3(3.386f, 0.000f, -1.168f), 90.0f, bridal: true);
+
+                // Scalloped silk valances along bedroom wall
+                BuildBridalWallSwags();
+
+                // Older pedestal bedroom fan
+                BedroomFanBuilder.Build(new Vector3(-2.907f, 0.000f, -0.780f), 251.2f, -3.55f);
+            }
+            else
+            {
+                // 2. Teak Wardrobe
+                Wardrobe(new Vector3(3.322f, 0.000f, 1.093f), 270.0f, bridal: false);
+
+                // 3. Dressing Table & Mirror
+                BuildDressingTable(new Vector3(3.463f, 0.000f, -2.628f), 92.6f, bridal: false);
+
+                // 4. Bedside Table with Enamel Pitcher & Authentic Cambodian Kerosene Lantern (Changkheang Praeng Kart)
+                BuildNightstand(new Vector3(-2.242f, 0.000f, 1.286f));
+                BuildPitcher(new Vector3(-2.212f, 0.490f, 1.315f));
+                BuildKeroseneLamp(new Vector3(-2.388f, 0.522f, 1.121f));
+
+                // 5. Handwoven Wild Reed Floor Mat
+                ReedMat(new Vector3(-0.900f, 0.015f, -1.900f), bridal: false);
+
+                // 6. Travel Trunk / Chest
+                Storage(new Vector3(3.438f, 0.000f, -1.527f), 90.0f, bridal: false);
+
+                // Older pedestal bedroom fan
+                BedroomFanBuilder.Build(new Vector3(-2.906f, 0.000f, -0.780f), 251.8f, -3.55f);
+            }
+
+            // Warm interior lighting
+            LightingBuilder.Bulb(new Vector3(.2f, 2.2f, -1), 5, 1.6f, false);
+
+            Parent = old;
+        }
+
+        static void BuildNightstand(Vector3 p)
+        {
+            var tableGroup = ModelGroup("Bedside wooden nightstand table", p);
             var prevParent = Parent;
             Parent = tableGroup;
             Box("Worn table top", Vector3.up * .49f, new Vector3(.55f, .07f, .55f), S.DarkWood);
@@ -36,47 +88,18 @@ namespace ThatNight.ChapterOne.Editor
                     Box("Table leg", new Vector3(x * (.55f / 2 - .1f), .49f / 2, z * (.55f / 2 - .1f)), new Vector3(.07f, .49f, .07f), S.DarkWood);
             Parent = prevParent;
             ModelCombiner.CombineModel(tableGroup, addCollider: true);
+        }
 
-            var pitcherGroup = ModelGroup("Bedside water pitcher and tea bowl", new Vector3(-2.2f, .49f, .55f));
-            prevParent = Parent;
+        static void BuildPitcher(Vector3 p)
+        {
+            var pitcherGroup = ModelGroup("Bedside water pitcher and tea bowl", p);
+            var prevParent = Parent;
             Parent = pitcherGroup;
             Lathe("Enamel bedside water pitcher", new Vector3(0, .04f, 0), new[]{ new Vector2(.07f, 0), new Vector2(.10f, .03f), new Vector2(.09f, .24f), new Vector2(.11f, .27f), new Vector2(.095f, .275f), new Vector2(.07f, .06f) }, S.Porcelain, 24);
             Tube("Pitcher handle", new Vector3(-.11f, .20f, 0), .085f, .012f, S.Metal, Quaternion.identity, 20);
             Lathe("Porcelain tea bowl", new Vector3(.16f, .04f, -.15f), new[]{ new Vector2(.035f, 0), new Vector2(.06f, .045f), new Vector2(.06f, .06f) }, S.Porcelain, 16);
             Parent = prevParent;
             ModelCombiner.CombineModel(pitcherGroup, addCollider: true);
-
-            var lampGroup = ModelGroup("Bedside ceremonial brass lamp", new Vector3(-2.2f, .49f, .75f));
-            prevParent = Parent;
-            Parent = lampGroup;
-            Lathe("Lamp brass chalice", Vector3.zero, new[]{ new Vector2(.05f, 0), new Vector2(.02f, .12f), new Vector2(.06f, .18f) }, S.Brass, 14);
-            Ball("Bedside lamp warm glow", Vector3.up * .21f, Vector3.one * .03f, S.Bulb);
-            Parent = prevParent;
-            ModelCombiner.CombineModel(lampGroup, addCollider: true);
-
-            // 5. Handwoven Wild Reed Floor Mat & Red Silk Runner
-            ReedMat(new Vector3(-.9f, .015f, -1.9f), bridal);
-
-            // 6. Travel Trunk / Chest
-            Storage(new Vector3(-2.5f, 0, -2.65f), bridal);
-
-            if (bridal)
-            {
-                // Scene 04: Traditional Cambodian bridal attire on display stand
-                PropsBuilder.BridalAttire(new Vector3(1.15f, 0, .85f), -20f);
-
-                // Scalloped silk valances along bedroom wall
-                BuildBridalWallSwags();
-            }
-
-            // Ceiling / Standing Fan & Props
-            BedroomFanBuilder.Build(new Vector3(-2.85f, 0, -.95f));
-            PropsBuilder.Basket(new Vector3(2.8f, .01f, -2.25f), .7f);
-
-            // Warm interior lighting
-            LightingBuilder.Bulb(new Vector3(.2f, 2.2f, -1), 5, 1.6f, false);
-
-            Parent = old;
         }
 
         static Material Mirror() => S.Plain("Aged bedroom mirror", new Color(.34f, .40f, .38f), .72f, .8f);
@@ -144,9 +167,22 @@ namespace ThatNight.ChapterOne.Editor
             for (int i = 0; i < (bridal ? 2 : 1); i++)
                 Ball("Embroidered sleeping pillow", new Vector3(bridal ? (i - .5f) * .74f : 0, .74f, .78f), new Vector3(bridal ? .68f : 1.0f, .20f, .42f), bridal ? goldSilk : S.Cream);
 
-            // Kapok cylinder bolsters along sides
-            Cylinder("Kapok bolster left", new Vector3(-.65f, .70f, 0), .11f, 1.2f, bridal ? redSilk : S.Pink, 16);
-            Cylinder("Kapok bolster right", new Vector3(.65f, .70f, 0), .11f, 1.2f, bridal ? redSilk : S.Pink, 16);
+            // Kapok cylinder bolsters laid horizontally flat along bed sides (Z axis)
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var bStart = new Vector3(side * .65f, .72f, -.55f);
+                var bEnd = new Vector3(side * .65f, .72f, .55f);
+                Grid("Kapok side bolster body", 16, 2, (u, v) =>
+                {
+                    float a = u * Mathf.PI * 2f;
+                    Vector3 center = Vector3.Lerp(bStart, bEnd, v);
+                    return center + new Vector3(Mathf.Cos(a) * .11f, Mathf.Sin(a) * .11f, 0);
+                }, bridal ? redSilk : S.Pink, Vector2.one, true);
+                Ball("Bolster silk cap front", bStart, new Vector3(.22f, .22f, .04f), bridal ? redSilk : S.Pink);
+                Ball("Bolster silk cap back", bEnd, new Vector3(.22f, .22f, .04f), bridal ? redSilk : S.Pink);
+                Tube("Bolster gold tassel ring front", bStart + Vector3.forward * .03f, .115f, .014f, goldSilk, Quaternion.identity, 16);
+                Tube("Bolster gold tassel ring back", bEnd - Vector3.forward * .03f, .115f, .014f, goldSilk, Quaternion.identity, 16);
+            }
 
             // 7. Folded Silk / Cotton Blanket
             Box("Folded woven blanket", new Vector3(0, .68f, -.75f), new Vector3(1.5f, .085f, .48f), bridal ? redSilk : bedding);
@@ -196,9 +232,10 @@ namespace ThatNight.ChapterOne.Editor
                 }
         }
 
-        static void BuildDressingTable(Vector3 p, bool bridal)
+        static void BuildDressingTable(Vector3 p, float yaw, bool bridal)
         {
             var dressingGroup = ModelGroup("Bridal dressing table mirror and jewelry casket", p);
+            if (yaw != 0f) dressingGroup.transform.localEulerAngles = new Vector3(0, yaw, 0);
             var prevParent = Parent;
             Parent = dressingGroup;
 
@@ -245,6 +282,12 @@ namespace ThatNight.ChapterOne.Editor
                 Box("Comb tooth", new Vector3(-.13f + i * .014f, .72f, -.155f), new Vector3(.006f, .016f, .05f), S.DarkWood);
             Cylinder("Small toiletry tin", new Vector3(.28f, .72f, -.12f), .065f, .07f, S.Metal, 20);
 
+            if (bridal)
+            {
+                // 2006 classic button mobile phone placed neatly on front-center of dressing table surface (free of jewelry tray)
+                PropsBuilder.MobilePhone2006(new Vector3(-0.06f, .725f, -.06f), 15f);
+            }
+
             Parent = prevParent;
             ModelCombiner.CombineModel(dressingGroup, addCollider: true);
         }
@@ -269,11 +312,11 @@ namespace ThatNight.ChapterOne.Editor
             ModelCombiner.CombineModel(wallSwagGroup, addCollider: false);
         }
 
-        static void Wardrobe(Vector3 p, bool bridal)
+        static void Wardrobe(Vector3 p, float yaw, bool bridal)
         {
             var old = Parent;
             Parent = ModelGroup("Teak wardrobe with louvered doors", p);
-            Parent.localEulerAngles = new Vector3(0, -90, 0);
+            Parent.localEulerAngles = new Vector3(0, yaw, 0);
 
             Box("Wardrobe frame", Vector3.up * 1.1f, new Vector3(1.15f, 2.2f, .55f), S.DarkWood, true);
             Box("Wardrobe crown pediment", Vector3.up * 2.25f, new Vector3(1.22f, .1f, .62f), S.DarkWood);
@@ -321,11 +364,11 @@ namespace ThatNight.ChapterOne.Editor
             ModelCombiner.CombineModel(matCombined, addCollider: false);
         }
 
-        static void Storage(Vector3 p, bool bridal)
+        static void Storage(Vector3 p, float yaw, bool bridal)
         {
             var old = Parent;
             Parent = ModelGroup("Cameraman style travel chest", p);
-            Parent.localEulerAngles = new Vector3(0, 90, 0);
+            Parent.localEulerAngles = new Vector3(0, yaw, 0);
             Box("Travel trunk timber body", Vector3.up * .26f, new Vector3(.95f, .52f, .55f), S.Wood, true);
             for (int i = -1; i <= 1; i += 2)
             {
@@ -337,6 +380,147 @@ namespace ThatNight.ChapterOne.Editor
             var trunkCombined = Parent;
             Parent = old;
             ModelCombiner.CombineModel(trunkCombined, addCollider: true);
+        }
+
+        static void BuildKeroseneLamp(Vector3 p)
+        {
+            var old = Parent;
+            Parent = ModelGroup("Cambodian bedside kerosene tin lantern - Changkheang Praeng Kart", p);
+
+            // Pressed tin oil reservoir base
+            Lathe("Lamp tin fuel font", Vector3.zero, new[]{
+                new Vector2(.06f, 0), new Vector2(.075f, .025f), new Vector2(.07f, .08f), new Vector2(.04f, .11f), new Vector2(.04f, .13f)
+            }, S.Metal, 18);
+            // Brass burner collar and wick adjuster thumbwheel
+            Cylinder("Brass burner collar", Vector3.up * .13f, .036f, .035f, S.Brass, 14);
+            Box("Wick thumbscrew knob", new Vector3(-.042f, .145f, 0), new Vector3(.012f, .012f, .022f), S.Brass);
+
+            // Clear fluted glass chimney (Tbong Changkheang)
+            Lathe("Glass chimney", Vector3.up * .165f, new[]{
+                new Vector2(.034f, 0), new Vector2(.052f, .045f), new Vector2(.045f, .12f), new Vector2(.030f, .24f), new Vector2(.032f, .26f)
+            }, S.Porcelain, 16);
+
+            // Warm burning wick flame glow
+            Ball("Kerosene wick flame glow", Vector3.up * .18f, new Vector3(.018f, .032f, .018f), S.Bulb);
+
+            // Box of Flying Pigeon / safety matches beside the lantern
+            var matchPos = new Vector3(.11f, 0, .05f);
+            Box("Cardboard matchbox", matchPos + Vector3.up * .01f, new Vector3(.075f, .02f, .048f), S.DarkWood);
+            Box("Matchbox striker side", matchPos + new Vector3(0, .01f, -.024f), new Vector3(.072f, .016f, .002f), S.Black);
+            Box("Matchbox red label top", matchPos + Vector3.up * .021f, new Vector3(.068f, .001f, .042f), S.Plain("Matchbox red cover", new Color(.78f, .18f, .18f), .1f));
+
+            var lampCombined = Parent;
+            Parent = old;
+            ModelCombiner.CombineModel(lampCombined, addCollider: true);
+        }
+
+        static void BuildBridalSlippers(Vector3 p)
+        {
+            var old = Parent;
+            Parent = ModelGroup("Bride velvet wedding slippers - Svak Meas", p);
+
+            var crimsonVelvet = S.Plain("Nuptial crimson velvet", new Color(.68f, .10f, .18f), .35f);
+            var goldThread = S.Plain("Gold embroidery thread", new Color(.88f, .72f, .18f), .50f);
+
+            for (int foot = -1; foot <= 1; foot += 2)
+            {
+                var sp = new Vector3(foot * .085f, 0, 0);
+                // Pointed curved oriental slipper sole
+                Box("Slipper leather sole", sp + Vector3.up * .006f, new Vector3(.075f, .012f, .21f), S.DarkWood);
+                // Velvet embroidered vamp covering forefoot
+                Grid("Velvet slipper vamp", 8, 8, (u, v) =>
+                {
+                    float x = sp.x + (u - .5f) * .072f;
+                    float y = .012f + Mathf.Sin(u * Mathf.PI) * .042f * (1f - v * .4f);
+                    float z = sp.z + .01f + v * .10f;
+                    return new Vector3(x, y, z);
+                }, crimsonVelvet, Vector2.one, true);
+                // Gold bullion embroidery crest on slipper toe
+                Ball("Slipper gold toe crest", sp + new Vector3(0, .035f, .09f), new Vector3(.025f, .015f, .025f), goldThread);
+            }
+
+            var slipCombined = Parent;
+            Parent = old;
+            ModelCombiner.CombineModel(slipCombined, addCollider: false);
+        }
+
+        static void BuildClothesDryingRack(Vector3 p)
+        {
+            var old = Parent;
+            Parent = ModelGroup("Traditional bamboo clothes hanging rail - Raneak Peuk Khao-Ao", p);
+
+            var holSilk = S.Plain("Cambodian Ikat silk Sampot Hol", new Color(.72f, .22f, .30f), .25f);
+            var phamungSilk = S.Plain("Emerald silk Phamung sarong", new Color(.16f, .48f, .34f), .25f);
+            var kromaCheck = S.Plain("Checked Kroma scarf", new Color(.75f, .28f, .25f), .15f);
+
+            // A-frame timber side uprights
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var sp = new Vector3(side * .65f, 0, 0);
+                Beam("A-frame leg front", sp + new Vector3(0, 0, -.24f), sp + new Vector3(0, 1.45f, 0), .035f, S.Wood);
+                Beam("A-frame leg back", sp + new Vector3(0, 0, .24f), sp + new Vector3(0, 1.45f, 0), .035f, S.Wood);
+                Beam("A-frame cross stretcher", sp + new Vector3(0, .32f, -.16f), sp + new Vector3(0, .32f, .16f), .028f, S.DarkWood);
+            }
+
+            // Top horizontal hanging bamboo pole
+            Beam("Top bamboo hanging rail", new Vector3(-.75f, 1.44f, 0), new Vector3(.75f, 1.44f, 0), .04f, S.Wood);
+
+            // Garment 1: Draped Cambodian Ikat Silk Sampot Hol
+            Grid("Draped Sampot Hol silk skirt", 12, 14, (u, v) =>
+            {
+                float x = -.35f + (u - .5f) * .42f;
+                float y = 1.43f - v * .78f;
+                float z = Mathf.Sin(u * Mathf.PI * 3f) * .022f;
+                return new Vector3(x, y, z);
+            }, holSilk, new Vector2(2, 4), true);
+
+            // Garment 2: Emerald Silk Phamung
+            Grid("Draped emerald Phamung silk", 12, 14, (u, v) =>
+            {
+                float x = .15f + (u - .5f) * .38f;
+                float y = 1.43f - v * .72f;
+                float z = Mathf.Sin(u * Mathf.PI * 3.5f) * .020f;
+                return new Vector3(x, y, z);
+            }, phamungSilk, new Vector2(2, 4), true);
+
+            // Garment 3: Draped checked cotton Kroma
+            Grid("Draped cotton Kroma", 8, 12, (u, v) =>
+            {
+                float x = .46f + (u - .5f) * .18f;
+                float y = 1.43f - v * .88f;
+                float z = -.02f + Mathf.Sin(u * Mathf.PI * 2f) * .015f;
+                return new Vector3(x, y, z);
+            }, kromaCheck, new Vector2(1, 4), true);
+
+            var rackCombined = Parent;
+            Parent = old;
+            ModelCombiner.CombineModel(rackCombined, addCollider: true);
+        }
+
+        static void BuildProtectiveYantra(Vector3 p)
+        {
+            var old = Parent;
+            Parent = ModelGroup("Buddhist protective wedding yantra amulet - Khaen Yan", p);
+
+            var goldTrim = S.Plain("Yantra gold leaf border", new Color(.85f, .70f, .18f), .45f);
+            var sacredCloth = S.Plain("Consecrated cotton cloth", new Color(.92f, .88f, .80f), .10f);
+            var redInk = S.Plain("Consecrated cinnabar ink", new Color(.75f, .16f, .18f), .15f);
+
+            // Wall mounting timber backboard
+            Box("Yantra wooden frame", p, new Vector3(.46f, .56f, .025f), S.DarkWood);
+            Box("Yantra gold inner bezel", p + new Vector3(0, 0, -.014f), new Vector3(.42f, .52f, .005f), goldTrim);
+
+            // Consecrated sacred cloth inscribed with Pali incantations and Angkorian yantra
+            Box("Sacred yantra white cloth", p + new Vector3(0, 0, -.017f), new Vector3(.38f, .48f, .002f), sacredCloth);
+
+            // Yantra geometric concentric protection circles and temple spire emblem
+            for (int r = 1; r <= 3; r++)
+                Tube("Yantra protection circle", p + new Vector3(0, 0, -.019f), r * .052f, .003f, redInk, Quaternion.identity, 16);
+            Ball("Yantra central lotus jewel", p + new Vector3(0, 0, -.021f), new Vector3(.035f, .035f, .004f), goldTrim);
+
+            var yanCombined = Parent;
+            Parent = old;
+            ModelCombiner.CombineModel(yanCombined, addCollider: false);
         }
     }
 }
