@@ -1,3 +1,43 @@
+# Project cleanup validation - 2026-11-23
+
+The authored Chapter 1 scene is now the source of truth. The obsolete generator,
+25 unused editor generator files and standalone guest setup were removed. Source
+was organized by feature, with the existing MonoBehaviour GUIDs preserved. The
+1,231-line chapter controller was split into control, sequences and UI partials.
+C# source decreased from 15,351 to 8,020 lines (73 to 53 files).
+
+Verified on Unity 6000.3.28f1:
+
+- Scripts compiled with no errors.
+- `Tools/Build.ps1` used the open Editor and completed the final Windows build:
+  `Builds/ChapterOne/THAT NIGHT.exe`, 911,990,808 reported bytes, zero errors/warnings.
+- The active scene remained `Assets/ChapterOne/Scenes/ChapterOneEnvironment.unity`.
+- Legacy full generation, forest replacement, story reinstallation and ambiguous
+  additive-scene builds were rejected. Normal build preparation chose the active scene.
+- All 9,929 transforms in 11 roots remained unchanged during those checks;
+  zero missing MonoBehaviour scripts were found.
+- Play mode advanced from frame 175 to 418 with the Chapter 1 director active.
+  Build preparation correctly rejected Play mode. Runtime sky material was a
+  separate instance, not a project asset. No runtime console errors were observed.
+- After exiting Play and rebuilding, SHA-256 hashes matched the starting snapshot
+  for all 7,505 checked scene/model/material/prefab/forest/settings files.
+- Moved scripts retained every original .meta GUID. The Editor ended outside Play
+  with a clean, saved scene.
+
+These checks cover compilation, build routing, reset protection, serialized asset
+preservation and a short startup smoke check. They do not establish a new FPS
+result, full story playthrough, or visual acceptance. Cold batch-mode builds and
+manual click-through of every launcher were not separately exercised.
+
+The workflow used Unity's `integration-advanced.md`, `playmode-verification-loop.md`
+and the installed Pipeline `commands/scripts.md`, `commands/build-and-compilation.md`
+and `commands/editor-lifecycle-and-observability.md` references.
+
+See [architecture](Architecture.md) for the current build/edit workflow.
+The November 16 report below is historical evidence for the earlier environment stage.
+
+---
+
 # Environment validation — 2026-11-16
 
 This review covers the separate Chapter One environment project. Gameplay is outside this stage.

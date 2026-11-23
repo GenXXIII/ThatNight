@@ -253,3 +253,10 @@ Think independently. Make professional decisions. Execute the work. Test the res
 My role is to define the overall vision of THAT NIGHT. Your role is to turn that vision into a finished game.
 
 **Do not wait for instructions for every step. Take initiative and keep building.**
+
+## 10. Clean Up Old & Superseded Code (No Duplicates — Mandatory)
+
+Whenever adding, upgrading, or modifying any feature, system, or mechanic:
+- Any old, unrelated, or duplicate scripts, classes, methods, fields, assets, or components that are superseded MUST be completely removed or cleaned up.
+- Never keep duplicate scripts, duplicate logic, or dead code side-by-side with the new implementation.
+- Maintain ONLY the latest, cleanest, most direct version of the project files. Old or superseded code must not accumulate in the project.

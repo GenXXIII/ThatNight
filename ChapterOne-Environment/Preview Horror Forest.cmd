@@ -1,3 +1,8 @@
 @echo off
 cd /d "%~dp0"
-start "THAT NIGHT - Dark Forest" "Builds\ChapterOneGameplay\THAT NIGHT.exe" -forestPreview
+if not exist "Builds\ChapterOne\THAT NIGHT.exe" (
+    echo Build the current Chapter 1 preview in Unity first.
+    pause
+    exit /b 1
+)
+start "THAT NIGHT" "Builds\ChapterOne\THAT NIGHT.exe" -forestPreview

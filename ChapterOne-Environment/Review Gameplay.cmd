@@ -1,3 +1,8 @@
 @echo off
 cd /d "%~dp0"
-"Builds\ChapterOneGameplay\THAT NIGHT.exe" -gameplayReview -logFile "Logs\gameplay-review.log"
+if not exist "Builds\ChapterOne\THAT NIGHT.exe" (
+    echo Build the current Chapter 1 preview in Unity first.
+    pause
+    exit /b 1
+)
+start "THAT NIGHT" "Builds\ChapterOne\THAT NIGHT.exe" -gameplayReview -logFile "Logs\gameplay-review.log"

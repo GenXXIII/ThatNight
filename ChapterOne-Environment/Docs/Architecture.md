@@ -1,48 +1,81 @@
-# Chapter One environment architecture
+# Chapter One architecture
 
-The environment is generated from code so the designed house, wedding site,
-terrain, and village can be rebuilt consistently.
+## Source of truth
+
+The authored scene in `Assets/ChapterOne/Scenes` owns the current house, wedding,
+forest and Chapter 1 gameplay. Scene edits are saved directly. The old procedural
+full-environment generator has been removed; building never recreates the map.
 
 ## Runtime assembly
 
-`Assets/ChapterOne/Scripts` contains only code required by the built game:
+`Assets/ChapterOne/Scripts` is divided by feature, in the existing
+`ThatNight.ChapterOne` assembly. Existing script GUIDs are preserved.
 
-- `EnvironmentCamera` handles inspection controls and review captures.
-- `EnvironmentLighting` switches the five authored atmosphere stages.
-- `EnvironmentPerformance` owns camera culling and runtime quality policy.
-- `SiteLayout` is the shared source of site dimensions and landmarks.
-- `ModelRoot` marks selectable generated models.
+- `Environment`: inspection camera, lighting, layout constants, render markers and quality policy.
+- `Forest`: walking, forest detail visibility and instanced foliage.
+- `Player`: interactions, body, animated hands and eyelid overlay.
+- `Story`: chapter progression, dialogue, family NPCs, ambience and phone.
+  `ChapterOneDirector` is split into state/control, `Sequences` and `UI` partials;
+  its original MonoBehaviour GUID and serialized fields are preserved.
+- `Interactions`: doors, pickups, guests and preparation station.
+- `Preview`: explicit launch modes and opt-in gameplay review.
 
 ## Editor assembly
 
-`Assets/ChapterOne/Editor` contains scene generation and is excluded from
-player builds:
+`Assets/ChapterOne/Editor` is excluded from the player:
 
-- `EnvironmentBuild` orchestrates generation and Windows builds.
-- Feature builders own one part of the environment.
-- `LandscapeBuilder` is split by responsibility: the main file owns the site
-  shell, `Trees` owns tree geometry, `ForestFloor` owns ground dressing, and
-  `ForestLayout` owns placement. All four remain one partial builder type.
-- `PropsBuilder` keeps shared props in the main file and Cambodia-specific
-  household and wedding props in `PropsBuilder.Cambodian`.
-- `MeshFactory` creates procedural meshes.
-- `ModelCombiner` consolidates each editable model.
-- `EnvironmentPerformanceOptimizer` applies distant-forest culling and
-  practical-light policy without changing authored transforms or materials.
-- `SpatialRenderBatcher` creates render-only material batches while retaining
-  the authored hierarchy and colliders. Use **THAT NIGHT > Restore authored
-  renderers** to remove those batches for detailed manual editing.
-- `EnvironmentBuildSceneProcessor` strips disabled authoring renderers only
-  from the temporary player-build copy, avoiding duplicate mesh data while the
-  editable scene remains intact.
+- `Build`: one build pipeline, command-line mailbox and build-copy stripping.
+- `Authoring/Characters`: character and hands construction plus material repair.
+- `Authoring/Gameplay`: installation and targeted story/door repair.
+- `Authoring/Forest`: optional forest installation and shared terrain math.
+- `Authoring/Shared`: material and model helpers still used by those tools.
+- `Performance`: render batching and environment optimization.
+- `Navigation`: Scene-view navigation and atmosphere menus.
+- `Integration`: Editor integration startup.
 
-## Safe workflow
+The 25 old house, wedding, kitchen and landscape generation scripts were removed.
+Terrain calculations still required by forest tools live in `ForestTerrainLayout`.
+Existing meshes, materials, prefabs and serialized scene objects are preserved.
+Removed source can be recovered from Git commit `378eaee` if historical reference
+is needed. Backup folders outside `Assets` are not compiled into this project.
 
-1. Change the owning feature builder.
-2. Run **THAT NIGHT > Regenerate environment scene**.
-3. Run **THAT NIGHT > Optimize current environment** after manual scene edits.
-4. Check the Console and compare rendered views.
-5. Profile a normal rendered interval without screenshot readback.
+## Build and preview contract
 
-The generated scene remains the output of the builders. Save manual variants
-under a different scene name before regenerating.
+Use **THAT NIGHT > Build current Chapter 1 preview** or `Tools/Build.ps1`.
+An interactive build saves the active authored scene if dirty and builds that
+scene. It rejects Play mode, additive scenes and scenes outside
+`Assets/ChapterOne/Scenes`. Selecting a manual variant updates Build Profiles so
+later batch builds use the same scene. Batch builds require exactly one enabled
+saved scene and do not run any generator or authoring setup.
+
+All launchers use `Builds/ChapterOne/THAT NIGHT.exe`:
+
+- Play Chapter 1 / Play First Person: current story flow.
+- Preview Environment: `-environmentPreview`, inspection without story startup.
+- Preview Horror Forest: `-forestPreview`, forest inspection without story startup.
+- Review Gameplay: `-gameplayReview`, opt-in review.
+- Tools/Review.ps1: `-environmentReview`, environment captures.
+
+Old executable folders are not launch targets. Rebuild after changing a scene.
+`EnvironmentBuild.Generate()` only reports that legacy regeneration was removed;
+there is no regeneration menu. Existing forest and Chapter 1 setup commands reject
+reinstallation rather than replacing hand-edited content. Use targeted repair
+commands for existing components.
+
+## Editing and performance
+
+1. Open the authored scene, stop Play, edit and save.
+2. If editing batched geometry, use **Restore authored renderers** first.
+3. Use **Optimize current environment** afterward to refresh render batches.
+4. Build the current preview. No authoring or optimization runs implicitly.
+
+Scene-navigation controls affect Scene-view visibility and camera settings only;
+they no longer change global quality presets. Build-time stripping operates on
+Unity's temporary player copy. It retains colliders and never saves that copy
+back over the authored scene. FPS and final visual quality require separate
+rendered measurements; source cleanup alone does not establish either.
+
+Material helpers preserve existing authored materials. Play-mode atmosphere uses
+a runtime sky instance so leaving Play cannot overwrite the shared sky asset.
+The old standalone guest setup and bedroom-spawn menu were removed; current
+Chapter 1 installation and targeted repairs own story wiring.

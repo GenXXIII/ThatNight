@@ -1,6 +1,8 @@
 # THAT NIGHT — Chapter One environment
 
-New Unity 6000.3.28f1 project. This stage builds the house and wedding environment from your supplied image. It contains an inspection camera, day/night lighting and editable environment assets. Gameplay, quests, characters and story sequences are outside this stage.
+Unity 6000.3.28f1 project for the current Chapter 1 wedding, house, forest and story gameplay. The saved scene is the source of truth. Builds preserve your scene edits.
+
+Build with **THAT NIGHT > Build current Chapter 1 preview**, then launch **Play Chapter 1 - The Wedding.cmd** for the story or **Preview Environment.cmd** for inspection. All launchers use the same current executable.
 
 ## See the environment
 
@@ -34,27 +36,16 @@ The small **CHAPTER ONE** panel inside the Scene view has **House**, **Courtyard
 
 ## Organization
 
-| Folder under Assets/ChapterOne | Purpose |
-| --- | --- |
-| Scenes | Environment scene |
-| Prefabs | Reusable house, wedding, kitchen/props, ground, village and cattle shelter groups |
-| Models | Persistent generated 3D meshes |
-| Materials | Timber, soil, cloth, roof, metal and foliage materials |
-| Textures | Downloaded PBR maps and previously generated foliage/cabinet surfaces |
-| Editor | Small C# builders for each environment feature |
-| Scripts | Environment inspection and lighting only |
-| Shaders | Weathered surfaces, sky and camera color treatment |
+`Assets/ChapterOne/Scenes` contains the authored scene. `Scripts` is organized into Environment, Forest, Player, Story, Interactions and Preview. `Editor` separates Build, Navigation, Performance, Integration and feature-specific Authoring tools. Existing models, materials, prefabs, textures and shaders retain their asset identities.
 
-The scene generator owns `ChapterOneEnvironment.unity`, the generated meshes and prefabs. **THAT NIGHT → Regenerate environment scene** rebuilds these from C#; it does not preserve manual changes to that generated scene. Edit a separate scene for manual work. To change the generator, use `StiltHouseBuilder.cs`, `WeddingYardBuilder.cs`, `KitchenBuilder.cs`, `LandscapeBuilder.cs`, `PropsBuilder.cs` or `SurfaceLibrary.cs`.
-
-`LivingRoomFloorBuilder.cs` owns the full living-room covering and exposed seating bay. `BedroomBuilder.cs` and `BedroomFanBuilder.cs` own both furnished bedrooms. `HouseWeddingBuilder.cs` owns upstairs ceremony dressing, and `WeddingOfferingBuilder.cs` builds fruit trays, candles and flowers. `UnderHouseSittingBuilder.cs` owns the slatted sitting platform, woven mat and resting cushion under the house. `CattleShelterBuilder.cs` owns the roadside shelter; `GroundDetailBuilder.cs` owns soil blending, worn paths and small ground vegetation. Main building dimensions and positions are in `Scripts/SiteLayout.cs`.
+The old full-scene generator and its obsolete builders have been removed. There is no regeneration step. Existing forest/story setup cannot overwrite your edited content. See [architecture and safe editing](Docs/Architecture.md) for the complete structure and repair workflow.
 
 ## Build and review
 
-Run `powershell -ExecutionPolicy Bypass -File .\Tools\Build.ps1` from this folder. It regenerates and builds the Windows environment viewer, using the open editor if this project is already open. Save edits and stop Play first. In Unity you can also use **THAT NIGHT → Build environment preview**.
+Run `powershell -ExecutionPolicy Bypass -File .\Tools\Build.ps1` from this folder, or use **THAT NIGHT > Build current Chapter 1 preview**. Stop Play first. The open Editor saves and builds the active authored scene. With Unity closed, the script builds the single enabled scene in Build Profiles. Output: `Builds/ChapterOne/THAT NIGHT.exe`. It never regenerates the environment.
 
 Run `powershell -ExecutionPolicy Bypass -File .\Tools\Review.ps1` to capture forty day/night views and sample the entrance view's rendering performance. Leave its visible window focused until it closes. Results and actual Unity images are written to `Review`. This is a short fixed-view measurement, not a complete performance benchmark.
 
 Add `-CaptureOnly` to save the same forty images in the background without an interactive frame-rate measurement. The result identifies this as batch capture. An interrupted review must produce a fresh result; the script rejects stale results from previous runs.
 
-The source image is an art-direction reference. The delivered 3D scene is an environment study; it does not yet match the reference's photographic detail, fabric simulation, clutter or final baked lighting. Materials and silhouettes can be reviewed before gameplay work starts. See [reference decisions](Docs/Reference-Decisions.md), [asset provenance](Docs/Assets.md) and [verified results and limits](Docs/Validation.md).
+The source image is an art-direction reference. The delivered 3D scene remains a prototype; it does not yet match the reference's photographic detail, fabric simulation, clutter or final baked lighting. Review materials, silhouettes and gameplay separately. See [reference decisions](Docs/Reference-Decisions.md), [asset provenance](Docs/Assets.md) and [verified results and limits](Docs/Validation.md).

@@ -1,7 +1,7 @@
 param([switch]$CaptureOnly)
 $ErrorActionPreference = 'Stop'
 $projectFolder = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $projectFolder 'Builds\ChapterOneEnvironment.exe'
+$exe = Join-Path $projectFolder 'Builds\ChapterOne\THAT NIGHT.exe'
 $log = Join-Path $projectFolder 'Logs/review-player.log'
 $arguments = '-environmentReview -screen-width 1280 -screen-height 720 -screen-fullscreen 0 -logFile "{0}"' -f $log
 if ($CaptureOnly) { $arguments = '-batchmode ' + $arguments }
