@@ -79,12 +79,16 @@ namespace ThatNight.ChapterOne
             // Crucial: Clear director fullscreen fade quad so camera and eyelids become visible!
             fade = 0f;
 
-            if (nokia) nokia.TriggerIncomingCall();
             if (eyelids)
             {
                 bool fullyDone = false;
                 yield return eyelids.PlayWakingSequence(
-                    onHalfAwake: () => { objective = "Wedding Day — 4:00 AM"; },
+                    onHalfAwake: () => 
+                    { 
+                        objective = "Wedding Day — 4:00 AM";
+                        // Ringtone begins ringing only as the player opens their eyes!
+                        if (nokia) nokia.TriggerIncomingCall();
+                    },
                     onFullyAwake: () => { fullyDone = true; }
                 );
                 while (!fullyDone) yield return null;
@@ -93,12 +97,30 @@ namespace ThatNight.ChapterOne
             {
                 yield return FadeFromBlack(1.6f);
                 objective = "Wedding Day — 4:00 AM";
+                if (nokia) nokia.TriggerIncomingCall();
             }
 
-            // Bride murmurs groggily as she opens her eyes
+            // Bride murmurs groggily as she opens her eyes (glance left and right slightly from the pillow)
+            if (explorer != null)
+            {
+                explorer.SetLookDirection(138f, -6f);
+                explorer.ClampCenterYaw = 138f;
+                explorer.ClampYawRange = 25f;
+                explorer.LookClamped = true;
+                explorer.GlanceLocked = false;
+                explorer.MovementLocked = true;
+                explorer.ControlsLocked = false;
+            }
+
             if (narrative)
             {
                 yield return narrative.PlayAndWait(ChapterOneNarrative.Scene01_WakingDialogue());
+            }
+
+            if (explorer != null)
+            {
+                explorer.LookClamped = false;
+                explorer.ControlsLocked = true;
             }
 
             // Bride rises from bed (camera sits up and rises to standing, but body remains hidden so no glitch is visible)
@@ -108,23 +130,86 @@ namespace ThatNight.ChapterOne
             isStandingUp = true;
             UnlockPlayer();
 
-            objective = "Move around the bedroom";
+            // 1. First tutorial prompt: Look around (glance/look around for 2 seconds)
+            // Keep movement locked briefly so player focuses on looking around first
+            if (explorer != null) explorer.MovementLocked = true;
+            objective = "Look around";
 
-            // Wait for player to move around first
-            Vector3 startP = player != null ? player.transform.position : (MainCam ? MainCam.transform.position : Vector3.zero);
-            float moveWait = 0f;
-            while (!hasMovedAround && moveWait < 5.0f)
+            float lookActiveTime = 0f;
+            float lookSafety = 0f;
+            while (lookActiveTime < 2.0f && lookSafety < 10.0f)
             {
-                moveWait += Time.deltaTime;
-                Vector3 curP = player != null ? player.transform.position : (MainCam ? MainCam.transform.position : Vector3.zero);
-                if (Vector3.Distance(new Vector3(curP.x, 0, curP.z), new Vector3(startP.x, 0, startP.z)) > 0.7f)
+                lookSafety += Time.deltaTime;
+                float mouseDelta = Mathf.Abs(Input.GetAxis("Mouse X")) + Mathf.Abs(Input.GetAxis("Mouse Y"));
+                if (mouseDelta > 0.02f)
                 {
-                    hasMovedAround = true;
+                    lookActiveTime += Time.deltaTime;
                 }
                 yield return null;
             }
+
+            // Enable movement for directional WASD walk tutorials
+            if (explorer != null) explorer.MovementLocked = false;
+
+            // 2. Move Forward (W) - 1 second
+            objective = "Move Forward (W)";
+            float fwdTime = 0f;
+            float fwdSafety = 0f;
+            while (fwdTime < 1.0f && fwdSafety < 12.0f)
+            {
+                fwdSafety += Time.deltaTime;
+                if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow) || Input.GetAxisRaw("Vertical") > 0.2f)
+                {
+                    fwdTime += Time.deltaTime;
+                }
+                yield return null;
+            }
+
+            // 3. Move Backward (S) - 1 second
+            objective = "Move Backward (S)";
+            float backTime = 0f;
+            float backSafety = 0f;
+            while (backTime < 1.0f && backSafety < 12.0f)
+            {
+                backSafety += Time.deltaTime;
+                if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow) || Input.GetAxisRaw("Vertical") < -0.2f)
+                {
+                    backTime += Time.deltaTime;
+                }
+                yield return null;
+            }
+
+            // 4. Move Left (A) - 1 second
+            objective = "Move Left (A)";
+            float leftTime = 0f;
+            float leftSafety = 0f;
+            while (leftTime < 1.0f && leftSafety < 12.0f)
+            {
+                leftSafety += Time.deltaTime;
+                if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) || Input.GetAxisRaw("Horizontal") < -0.2f)
+                {
+                    leftTime += Time.deltaTime;
+                }
+                yield return null;
+            }
+
+            // 5. Move Right (D) - 1 second
+            objective = "Move Right (D)";
+            float rightTime = 0f;
+            float rightSafety = 0f;
+            while (rightTime < 1.0f && rightSafety < 12.0f)
+            {
+                rightSafety += Time.deltaTime;
+                if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) || Input.GetAxisRaw("Horizontal") > 0.2f)
+                {
+                    rightTime += Time.deltaTime;
+                }
+                yield return null;
+            }
+
             hasMovedAround = true;
 
+            // 6. Now transition to the phone call task
             objective = "Answer Brother's call at the bedroom mirror table";
             yield return new WaitUntil(() => currentScene != GameScene.Scene02_WakingUpAndPhone);
         }
@@ -232,31 +317,107 @@ namespace ThatNight.ChapterOne
         IEnumerator Scene04_LivingRoomSequence()
         {
             currentScene = GameScene.Scene04_LivingRoom;
-            objective = "Find Mother in the living room";
+            objective = "Meet Mother in the living room";
             if (ambience) ambience.SetScene(AmbienceScene.Morning);
 
-            // Wait for player to interact with Mother
-            yield return new WaitUntil(() => currentScene != GameScene.Scene04_LivingRoom);
+            // Wait until player approaches the open bedroom door
+            var doors = FindObjectsByType<HingedOpening>(FindObjectsSortMode.None);
+            HingedOpening door = null;
+            foreach (var d in doors)
+            {
+                if (d.triggerDirectorOnOpen) { door = d; break; }
+            }
+            Vector3 doorPos = door ? door.transform.position : new Vector3(-7.22f, 23.70f, 21.08f);
+
+            bool autoTriggered = false;
+            while (!autoTriggered && currentScene == GameScene.Scene04_LivingRoom)
+            {
+                var cam = MainCam;
+                if (cam != null && (door == null || door.isOpen))
+                {
+                    float distToDoor = Vector3.Distance(new Vector3(cam.transform.position.x, 0, cam.transform.position.z), new Vector3(doorPos.x, 0, doorPos.z));
+                    float distToMother = mother != null ? Vector3.Distance(cam.transform.position, mother.transform.position) : 99f;
+
+                    // When player walks near the open doorway or steps into the hall: auto-trigger conversation!
+                    if (distToDoor < 2.2f || distToMother < 2.5f || cam.transform.position.x > -6.8f)
+                    {
+                        autoTriggered = true;
+                        break;
+                    }
+                }
+                yield return null;
+            }
+
+            if (currentScene == GameScene.Scene04_LivingRoom)
+            {
+                yield return PlayLivingRoomCinematicAndDialogue();
+            }
         }
 
         public void OnMotherTalkedLivingRoom()
         {
             if (currentScene == GameScene.Scene04_LivingRoom)
             {
-                BeginSequence(PlayLivingRoomDialogue());
+                BeginSequence(PlayLivingRoomCinematicAndDialogue());
             }
         }
 
-        IEnumerator PlayLivingRoomDialogue()
+        IEnumerator PlayLivingRoomCinematicAndDialogue()
         {
-            objective = "Talk with Mother";
+            objective = "Mother is speaking with you";
+            LockPlayer();
+
+            var cam = MainCam;
+            if (cam != null && mother != null)
+            {
+                Vector3 startP = cam.transform.position;
+                Quaternion startR = cam.transform.rotation;
+
+                Vector3 targetP = mother.transform.position + mother.transform.forward * 1.35f;
+                targetP.y = 25.24f; // Standing eye height
+                Vector3 lookTarget = mother.head ? mother.head.position : (mother.transform.position + Vector3.up * 1.55f);
+                Quaternion targetR = Quaternion.LookRotation((lookTarget - targetP).normalized);
+
+                // Smooth cinematic walk towards Mother (2.0s)
+                float dur = 2.0f;
+                for (float t = 0; t < dur; t += Time.deltaTime)
+                {
+                    float smooth = Mathf.SmoothStep(0f, 1f, t / dur);
+                    cam.transform.position = Vector3.Lerp(startP, targetP, smooth);
+                    cam.transform.rotation = Quaternion.Slerp(startR, targetR, smooth);
+                    yield return null;
+                }
+                TeleportPlayer(targetP, targetR);
+
+                // Enable glance left and right during dialogue so player can look at Mother and surroundings
+                float centerYaw = targetR.eulerAngles.y;
+                if (explorer != null)
+                {
+                    explorer.MovementLocked = true;
+                    explorer.ControlsLocked = false;
+                    explorer.LookClamped = true;
+                    explorer.ClampCenterYaw = centerYaw;
+                    explorer.ClampYawRange = 25f;
+                    explorer.GlanceLocked = false;
+                    explorer.SetLookDirection(centerYaw, 0f);
+                }
+            }
+
+            // Automatic dialogue with Mother (no click required)
             if (narrative)
             {
                 yield return narrative.PlayAndWait(ChapterOneNarrative.Scene03_LivingAreaLines());
             }
 
-            // Mother disappears (walks away / goes downstairs to wedding preparations)
+            // After conversation ends, Mother disappears to downstairs wedding preparations
             if (mother) mother.gameObject.SetActive(false);
+
+            if (explorer != null)
+            {
+                explorer.LookClamped = false;
+                explorer.MovementLocked = false;
+            }
+            UnlockPlayer();
 
             currentScene = GameScene.Scene05_Preparation;
             objective = "Go to the kitchen to wash your face (0/3)";
@@ -265,6 +426,60 @@ namespace ThatNight.ChapterOne
         public void OnFaceWashComplete()
         {
             objective = "Return to bedroom mirror table to do makeup";
+            StartCoroutine(WaitForReturnToBedroom());
+        }
+
+        IEnumerator WaitForReturnToBedroom()
+        {
+            var doors = FindObjectsByType<HingedOpening>(FindObjectsSortMode.None);
+            HingedOpening door = null;
+            foreach (var d in doors)
+            {
+                if (d.triggerDirectorOnOpen) { door = d; break; }
+            }
+            Vector3 doorway = new Vector3(-6.75f, 25.24f, 21.10f);
+
+            bool entered = false;
+            while (!entered && currentScene == GameScene.Scene05_Preparation)
+            {
+                var cam = MainCam;
+                if (cam != null)
+                {
+                    // Must be upstairs in the house (Y > 24.5m) to prevent triggering from downstairs/outside
+                    if (cam.transform.position.y > 24.5f)
+                    {
+                        float distToDoor = Vector2.Distance(
+                            new Vector2(cam.transform.position.x, cam.transform.position.z),
+                            new Vector2(doorway.x, doorway.z)
+                        );
+
+                        // If approaching within 2.0m outside, automatically open the door
+                        if (distToDoor < 2.0f && door != null && !door.isOpen)
+                        {
+                            door.Open();
+                        }
+
+                        // Trigger only when player reaches the actual entrance of the bedroom door!
+                        // Inside bedroom is Z >= 21.20f, threshold is distToDoor < 0.95f
+                        bool atDoorway = (distToDoor < 0.95f) || 
+                                         (cam.transform.position.z >= 21.20f && cam.transform.position.x >= -7.4f && cam.transform.position.x <= -6.1f);
+
+                        if (atDoorway)
+                        {
+                            entered = true;
+                            break;
+                        }
+                    }
+                }
+                yield return null;
+            }
+
+            if (currentScene == GameScene.Scene05_Preparation)
+            {
+                // Ensure the door is open so the path into the bedroom is clear
+                if (door != null && !door.isOpen) door.Open();
+                BeginSequence(PlayPreparationSequence());
+            }
         }
 
         // ================================================================
@@ -281,27 +496,116 @@ namespace ThatNight.ChapterOne
 
         IEnumerator PlayPreparationSequence()
         {
-            objective = "Applying bridal makeup";
+            objective = "Preparing bridal makeup with Mother";
             LockPlayer();
-            yield return FadeToBlack(0.6f);
 
-            var dressingTable = GameObject.Find("Bridal dressing table mirror and jewelry casket");
-            if (dressingTable != null && MainCam)
+            GameObject dressingTable = null;
+            foreach (var go in GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
             {
-                Vector3 seatPos = dressingTable.transform.position - dressingTable.transform.forward * 0.70f + Vector3.up * 0.50f;
-                Quaternion seatRot = Quaternion.LookRotation(dressingTable.transform.position - seatPos);
-                TeleportPlayer(seatPos, seatRot);
+                if (go.name == "Bridal dressing table mirror and jewelry casket" && go.transform.position.x < 0)
+                {
+                    dressingTable = go;
+                    break;
+                }
+            }
+            if (dressingTable == null) dressingTable = GameObject.Find("Bridal dressing table mirror and jewelry casket");
+            var cam = MainCam;
+
+            // Ensure dressing chair exists in front of the mirror table
+            if (MakeupMirrorStation.Instance != null)
+            {
+                MakeupMirrorStation.Instance.EnsureChair();
             }
 
-            // Position Mother beside the dressing table mirror for the emotional conversation
-            if (mother != null && dressingTable != null)
+            if (dressingTable != null && cam != null)
             {
-                mother.gameObject.SetActive(true);
-                mother.transform.position = dressingTable.transform.position + dressingTable.transform.right * 0.70f - dressingTable.transform.forward * 0.20f;
-                mother.transform.rotation = Quaternion.LookRotation(-dressingTable.transform.right);
-            }
+                // Seated on the wooden chair directly at the dressing table
+                Vector3 seatPos = new Vector3(-4.534f, 24.650f, 23.796f);
 
-            yield return FadeFromBlack(0.6f);
+                // Position Mother to the LEFT of the player beside the dressing table mirror facing the bride
+                Vector3 motherPos = new Vector3(-4.000f, 23.700f, 24.500f);
+                if (mother != null)
+                {
+                    mother.gameObject.SetActive(true);
+                    mother.transform.position = motherPos;
+                    Vector3 toBride = (seatPos - motherPos);
+                    toBride.y = 0;
+                    mother.transform.rotation = Quaternion.LookRotation(toBride.normalized);
+                }
+
+                // Mother's face position
+                Vector3 motherFaceTarget = motherPos + Vector3.up * 1.55f;
+
+                // Aim directly at Mother's face so she is clearly seen in front of the bride
+                Vector3 lookAtMotherDir = (motherFaceTarget - seatPos).normalized;
+                Quaternion seatRot = Quaternion.LookRotation(lookAtMotherDir);
+
+                Vector3 startP = cam.transform.position;
+                Quaternion startR = cam.transform.rotation;
+
+                // Waypoint navigation through bedroom door into chair so no wall clipping occurs
+                Vector3 wpDoorway = new Vector3(-6.75f, 25.24f, 21.40f); // Just inside the doorway
+                Vector3 wpChairFront = new Vector3(-4.534f, 25.24f, 23.796f); // In front of chair standing
+
+                // Smooth cinematic walk from the bedroom doorway over to the chair and sit down
+                float dur = 2.6f;
+                for (float t = 0; t < dur; t += Time.deltaTime)
+                {
+                    float u = Mathf.Clamp01(t / dur);
+                    float smooth = Mathf.SmoothStep(0f, 1f, u);
+
+                    // Interpolate position along natural path from door entrance -> chair front -> sit down
+                    Vector3 currentP;
+                    if (smooth < 0.40f)
+                    {
+                        float pSeg = smooth / 0.40f;
+                        currentP = Vector3.Lerp(startP, wpDoorway, pSeg);
+                    }
+                    else if (smooth < 0.75f)
+                    {
+                        float pSeg = (smooth - 0.40f) / 0.35f;
+                        currentP = Vector3.Lerp(wpDoorway, wpChairFront, pSeg);
+                    }
+                    else
+                    {
+                        float pSeg = (smooth - 0.75f) / 0.25f;
+                        currentP = Vector3.Lerp(wpChairFront, seatPos, pSeg);
+                    }
+
+                    Quaternion currentR = Quaternion.Slerp(startR, seatRot, smooth);
+
+                    if (explorer != null)
+                    {
+                        explorer.MoveRigAndCamera(currentP, currentR, seated: smooth >= 0.75f);
+                    }
+                    else
+                    {
+                        cam.transform.SetPositionAndRotation(currentP, currentR);
+                    }
+
+                    yield return null;
+                }
+
+                TeleportPlayer(seatPos, seatRot, seated: true);
+
+                // Enable gentle glance centered between Mother (37 deg) and Mirror (72 deg)
+                // Midpoint is ~54.5 deg, range +/- 25 deg covers both Mother and the dressing mirror!
+                float centerSeatYaw = 54.5f;
+                float faceMotherYaw = seatRot.eulerAngles.y;
+                float faceMotherPitch = Mathf.DeltaAngle(0, seatRot.eulerAngles.x);
+
+                if (explorer != null)
+                {
+                    explorer.MovementLocked = true;
+                    explorer.ControlsLocked = true;
+                    explorer.LookClamped = true;
+                    explorer.ClampCenterYaw = centerSeatYaw;
+                    explorer.ClampYawRange = 25f;
+                    explorer.GlanceLocked = false;
+                    // Face Mother directly at the start of dialogue!
+                    explorer.SetLookDirection(faceMotherYaw, faceMotherPitch);
+                }
+            }
 
             // Play the emotional and encouraging conversation with Mother at the mirror table
             if (narrative)

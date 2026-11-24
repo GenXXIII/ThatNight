@@ -232,7 +232,8 @@ namespace ThatNight.ChapterOne
                 if (voice) voice.Stop();
                 lineAlpha = 0;
                 CurrentLine = default;
-                if (explorer) explorer.MovementLocked = false;
+                bool phoneHeld = (ChapterOneDirector.Instance != null && ChapterOneDirector.Instance.nokia != null && ChapterOneDirector.Instance.nokia.isHeld);
+                if (explorer && !phoneHeld) explorer.MovementLocked = false;
                 onComplete?.Invoke();
             }
         }

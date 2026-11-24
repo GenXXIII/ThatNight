@@ -116,8 +116,8 @@ namespace ThatNight.ChapterOne
                                      SiteLayout.HouseRotation * Quaternion.Euler(0, -42f, 0));
                     break;
                 case MotherPosition.Bedroom:
-                    SetWorldPosition(SiteLayout.HousePoint(new Vector3(-2.5f, 2.5f, 4.0f)),
-                                     SiteLayout.HouseRotation * Quaternion.Euler(0, 120, 0));
+                    SetWorldPosition(new Vector3(-4.000f, 23.700f, 24.500f),
+                                     Quaternion.Euler(0f, 217.2f, 0f));
                     break;
                 case MotherPosition.Ceremony:
                     SetWorldPosition(new Vector3(-2, SiteLayout.HillElevation + 0.1f, -1),

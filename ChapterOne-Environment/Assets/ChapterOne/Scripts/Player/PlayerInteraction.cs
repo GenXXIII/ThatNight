@@ -160,7 +160,7 @@ namespace ThatNight.ChapterOne
                 Vector3 playerFeet = (explorer && explorer.Body) ? explorer.Body.transform.position : (transform.position - Vector3.up * 1.54f);
                 float distToHandle = Vector3.Distance(new Vector3(playerFeet.x, handleWorld.y, playerFeet.z), handleWorld);
 
-                if (Input.GetKeyDown(KeyCode.Escape) || distToHandle > 2.2f)
+                if (Input.GetKeyDown(KeyCode.Escape) || distToHandle > 2.6f)
                 {
                     var door = activeDoorGrab;
                     activeDoorGrab = null;
@@ -246,7 +246,8 @@ namespace ThatNight.ChapterOne
                     door.Grab(this);
                     if (explorer)
                     {
-                        explorer.MovementLocked = true;
+                        // Enable player movement during hold open/close door
+                        explorer.MovementLocked = false;
                     }
                 }
                 else if (target is NokiaHandPhone phone)
@@ -361,7 +362,7 @@ namespace ThatNight.ChapterOne
 
             if (!Speaker)
             {
-                const float cursorSize = 14f; // Small, clean, precise Unity cursor size (14x14 pixels)
+                const float cursorSize = 17f; // Subtle, neat Unity hand cursor size (17x17 pixels)
                 float cx = w * 0.5f - cursorSize * 0.5f;
                 float cy = h * 0.5f - cursorSize * 0.5f;
 

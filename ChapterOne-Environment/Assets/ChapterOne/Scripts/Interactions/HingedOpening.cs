@@ -23,6 +23,11 @@ namespace ThatNight.ChapterOne
         public float currentAngle = 0f;
         public float openSpeed = 40f; // Weighty, realistic door swing (~2.2s for 90 deg)
 
+        [Header("Auto Close")]
+        public bool enableAutoClose = true;
+        public float autoCloseDelay = 60f; // Automatically closes after 1 minute (60s) of being open
+        float openTimer = 0f;
+
         [Header("Interaction")]
         public Vector3 handleLocal = new Vector3(0.85f, 1.05f, 0.05f);
         public bool triggerDirectorOnOpen; // For the bridal bedroom door
@@ -73,12 +78,63 @@ namespace ThatNight.ChapterOne
             isOpen = distOpen < distClosed;
         }
 
+        void Update()
+        {
+            // Auto-close after 1 minute (60s) of being open
+            if (enableAutoClose && isOpen && !isGrabbed && !Moving)
+            {
+                openTimer += Time.deltaTime;
+                if (openTimer >= autoCloseDelay)
+                {
+                    openTimer = 0f;
+                    Close();
+                }
+            }
+            else
+            {
+                openTimer = 0f;
+            }
+        }
+
+        public void Close()
+        {
+            if (!isOpen || Moving || isGrabbed) return;
+            startAngle = currentAngle;
+            targetAngle = closedAngle;
+            if (moveCoroutine != null) StopCoroutine(moveCoroutine);
+            moveCoroutine = StartCoroutine(AutoGlide(targetAngle, false, true));
+
+            if (partnerDoor != null && !isSyncingPartner && partnerDoor.isOpen)
+            {
+                isSyncingPartner = true;
+                partnerDoor.Close();
+                isSyncingPartner = false;
+            }
+        }
+
+        public void Open()
+        {
+            if (isOpen || Moving || isGrabbed) return;
+            startAngle = currentAngle;
+            targetAngle = openAngle;
+            if (moveCoroutine != null) StopCoroutine(moveCoroutine);
+            moveCoroutine = StartCoroutine(AutoGlide(targetAngle, true, true));
+
+            if (partnerDoor != null && !isSyncingPartner && !partnerDoor.isOpen)
+            {
+                isSyncingPartner = true;
+                partnerDoor.Open();
+                isSyncingPartner = false;
+            }
+        }
+
         public void Grab(PlayerInteraction player)
         {
             if (Moving) return;
             if (moveCoroutine != null) { StopCoroutine(moveCoroutine); moveCoroutine = null; }
 
             isGrabbed = true;
+            openTimer = 0f;
             startAngle = currentAngle;
             targetAngle = isOpen ? closedAngle : openAngle;
         }

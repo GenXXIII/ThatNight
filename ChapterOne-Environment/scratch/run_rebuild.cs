@@ -1,1 +1,0 @@
-return RebuildLeftBanquetAndAudience.Run();

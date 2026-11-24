@@ -36,7 +36,7 @@ namespace ThatNight.ChapterOne
         public string thoughtText = null;
 
         float callTimer;
-        bool isHeld;
+        public bool isHeld { get; private set; }
         Transform originalParent;
         Vector3 originalPosition;
         Quaternion originalRotation;
@@ -63,6 +63,11 @@ namespace ThatNight.ChapterOne
         {
             EnsureTablePosition();
             EnsureLcdScreen();
+            if (ringSource)
+            {
+                ringSource.playOnAwake = false;
+                ringSource.Stop();
+            }
         }
 
         void Start()
@@ -94,6 +99,8 @@ namespace ThatNight.ChapterOne
                 ringSource = GetComponent<AudioSource>();
                 if (!ringSource) ringSource = gameObject.AddComponent<AudioSource>();
             }
+            ringSource.playOnAwake = false;
+            ringSource.Stop();
             ringSource.spatialBlend = 0.4f;
             ringSource.minDistance = 2.0f;
             ringSource.maxDistance = 30f;
@@ -489,9 +496,10 @@ namespace ThatNight.ChapterOne
             if (explorer)
             {
                 explorer.MovementLocked = true;
-                explorer.LookClamped = false;
-                explorer.ClampCenterYaw = explorer.transform.eulerAngles.y;
-                explorer.ClampYawRange = 40f;
+                explorer.LookClamped = true;
+                explorer.ClampCenterYaw = explorer.CurrentYaw;
+                explorer.ClampYawRange = 18f;
+                explorer.GlanceLocked = false;
             }
 
             if (keypadBacklight)

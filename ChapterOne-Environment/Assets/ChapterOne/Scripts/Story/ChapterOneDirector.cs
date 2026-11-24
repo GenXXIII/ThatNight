@@ -133,7 +133,11 @@ namespace ThatNight.ChapterOne
 
         void LockPlayer()
         {
-            if (explorer) { explorer.ControlsLocked = true; if (explorer.Walking) explorer.SetWalking(false); }
+            if (explorer)
+            {
+                explorer.MovementLocked = true;
+                explorer.ControlsLocked = true;
+            }
         }
 
         void UnlockPlayer()
@@ -148,17 +152,17 @@ namespace ThatNight.ChapterOne
             Cursor.visible = false;
         }
 
-        void TeleportPlayer(Vector3 worldPos, Quaternion worldRot)
+        void TeleportPlayer(Vector3 worldPos, Quaternion worldRot, bool seated = false)
         {
             var cam = MainCam;
-            if (cam) cam.transform.SetPositionAndRotation(worldPos, worldRot);
-            if (player) player.transform.SetPositionAndRotation(worldPos, worldRot);
-            if (explorer != null)
+            if (explorer != null && explorer.Walking)
             {
-                bool wasWalking = explorer.Walking;
-                if (wasWalking) explorer.SetWalking(false);
+                explorer.MoveRigAndCamera(worldPos, worldRot, seated);
+            }
+            else
+            {
                 if (cam) cam.transform.SetPositionAndRotation(worldPos, worldRot);
-                if (wasWalking) explorer.SetWalking(true);
+                if (player) player.transform.SetPositionAndRotation(worldPos, worldRot);
             }
         }
 

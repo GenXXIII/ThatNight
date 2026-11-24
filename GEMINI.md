@@ -260,3 +260,8 @@ Whenever adding, upgrading, or modifying any feature, system, or mechanic:
 - Any old, unrelated, or duplicate scripts, classes, methods, fields, assets, or components that are superseded MUST be completely removed or cleaned up.
 - Never keep duplicate scripts, duplicate logic, or dead code side-by-side with the new implementation.
 - Maintain ONLY the latest, cleanest, most direct version of the project files. Old or superseded code must not accumulate in the project.
+
+## 11. Task Batching & Fresh Task Scope Rule
+
+- **Mid-Execution / Additional Tasks:** If you are working on a task (or I gave you a task) and I give you another task in a follow-up message before the work is completed, bundle them together, do ALL of them, and state upfront in text: *"I will do the new task together with the previous tasks."*
+- **Completed Tasks Stay Closed:** Once a task or batch of tasks is finished and reported as complete, when I give you a fresh new task, do NOT re-list, carry over, or re-include completed old tasks that are already done, unless I explicitly ask about or request modifications to them.

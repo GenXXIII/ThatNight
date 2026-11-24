@@ -207,21 +207,46 @@ namespace ThatNight.ChapterOne
 
                 var style = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 17,
+                    fontSize = 18,
                     fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.UpperLeft
                 };
-                style.normal.textColor = new Color(0.92f, 0.88f, 0.72f, 0.95f);
+                style.normal.textColor = new Color(1f, 0.92f, 0.45f, 1f); // Rich warm vivid gold weight
 
-                GUI.color = new Color(0, 0, 0, 0.6f);
+                GUI.color = new Color(0, 0, 0, 0.92f);
                 GUI.Label(new Rect(34, 30, 800, 32), "◆  " + objective, style);
-                GUI.color = new Color(0.92f, 0.88f, 0.72f, 0.95f);
+                GUI.Label(new Rect(33, 29, 800, 32), "◆  " + objective, style);
+                GUI.color = new Color(1f, 0.92f, 0.45f, 1f);
                 GUI.Label(new Rect(32, 28, 800, 32), "◆  " + objective, style);
                 GUI.color = Color.white;
 
-                // First-time instruction hints shown cleanly under objective
+                // First-time instruction hints shown cleanly under objective (no timers/counters displayed)
                 string firstTimeHint = null;
-                if (!hasPickedUpPhoneOnce && (objective.ToLower().Contains("phone") || objective.ToLower().Contains("call")))
+                if (objective == "Look around")
+                {
+                    firstTimeHint = "Hint: Move Mouse to look around";
+                }
+                else if (objective.Contains("Move Forward") || objective.Contains("(W)"))
+                {
+                    firstTimeHint = "Hint: Press and hold [W] to walk forward";
+                }
+                else if (objective.Contains("Move Backward") || objective.Contains("(S)"))
+                {
+                    firstTimeHint = "Hint: Press and hold [S] to walk backward";
+                }
+                else if (objective.Contains("Move Left") || objective.Contains("(A)"))
+                {
+                    firstTimeHint = "Hint: Press and hold [A] to step left";
+                }
+                else if (objective.Contains("Move Right") || objective.Contains("(D)"))
+                {
+                    firstTimeHint = "Hint: Press and hold [D] to step right";
+                }
+                else if (objective.Contains("Move around") || objective.Contains("W, A, S, D"))
+                {
+                    firstTimeHint = "Hint: Press [W, A, S, D] to walk";
+                }
+                else if (!hasPickedUpPhoneOnce && (objective.ToLower().Contains("phone") || objective.ToLower().Contains("call")))
                 {
                     firstTimeHint = "Hint: [Left Click] Pick up Phone at mirror table";
                 }
@@ -298,14 +323,15 @@ namespace ThatNight.ChapterOne
                 for (int x = 0; x < sz; x++)
                 {
                     float d = Mathf.Abs(x - c.x) + Mathf.Abs(y - c.y);
-                    if (d <= 10f)
+                    if (d <= 11f)
                     {
-                        if (d >= 8f) _markerDiamondTex.SetPixel(x, y, new Color(0.95f, 0.85f, 0.40f, 0.95f));
-                        else _markerDiamondTex.SetPixel(x, y, new Color(1f, 0.95f, 0.70f, 0.85f));
+                        if (d >= 9f) _markerDiamondTex.SetPixel(x, y, new Color(0.08f, 0.05f, 0.01f, 1.0f)); // Bold dark outline
+                        else if (d <= 4f) _markerDiamondTex.SetPixel(x, y, new Color(1f, 1f, 1f, 1.0f)); // Bright white glowing core
+                        else _markerDiamondTex.SetPixel(x, y, new Color(1f, 0.84f, 0.18f, 1.0f)); // Vivid solid gold weight
                     }
-                    else if (d <= 12f)
+                    else if (d <= 13f)
                     {
-                        _markerDiamondTex.SetPixel(x, y, new Color(0.1f, 0.08f, 0.02f, 0.5f));
+                        _markerDiamondTex.SetPixel(x, y, new Color(0f, 0f, 0f, 0.80f)); // Outer shadow border
                     }
                     else
                     {
@@ -375,17 +401,17 @@ namespace ThatNight.ChapterOne
             Vector3 worldPt = explicitWorldPt ?? (target.position + Vector3.up * yOffset);
             Vector3 screenPt = cam.WorldToScreenPoint(worldPt);
 
-            if (screenPt.z > 0.4f && screenPt.z < 25f)
+            if (screenPt.z > 0.4f && screenPt.z < 45f)
             {
                 float sx = screenPt.x;
                 float sy = Screen.height - screenPt.y;
 
                 float dist = Vector3.Distance(cam.transform.position, worldPt);
-                float alpha = Mathf.Clamp01((20f - dist) / 5f);
-                float pulse = 0.85f + 0.15f * Mathf.Sin(Time.time * 4f);
-                float mSize = Mathf.Clamp(24f * pulse, 18f, 28f);
+                float alpha = Mathf.Clamp01((42f - dist) / 10f);
+                float pulse = 0.90f + 0.10f * Mathf.Sin(Time.time * 5f);
+                float mSize = Mathf.Clamp(30f * pulse, 26f, 34f);
 
-                GUI.color = new Color(1f, 1f, 1f, alpha * pulse);
+                GUI.color = new Color(1f, 1f, 1f, Mathf.Max(0.75f, alpha * pulse));
                 GUI.DrawTexture(new Rect(sx - mSize * 0.5f, sy - mSize * 0.5f, mSize, mSize), GetMarkerDiamondTex());
                 GUI.color = Color.white;
             }
