@@ -20,7 +20,8 @@ namespace ThatNight.ChapterOne
         Mother,
         Brother,
         Groom,
-        Guest
+        Guest,
+        GhostWoman
     }
 
     // ── Single dialogue line ───────────────────────────────────────────────
@@ -58,7 +59,7 @@ namespace ThatNight.ChapterOne
         float lineAlpha; // For fade in/out of subtitles
         readonly Queue<(List<DialogueLine> lines, Action complete)> pending = new();
         AudioSource voice;
-        Transform motherSpeaker, groomSpeaker;
+        Transform motherSpeaker, groomSpeaker, ghostSpeaker;
         bool advanceLine;
         bool skipAll;
         int playbackGeneration;
@@ -153,8 +154,14 @@ namespace ThatNight.ChapterOne
                 var actor = FindFirstObjectByType<GroomNPC>();
                 if (actor) groomSpeaker = actor.head ? actor.head : actor.transform;
             }
+            if (!ghostSpeaker)
+            {
+                var actor = FindFirstObjectByType<ShadowGhostWoman>();
+                if (actor) ghostSpeaker = actor.head ? actor.head : actor.transform;
+            }
             Transform speaker = line.speaker == DialogueSpeaker.Mother ? motherSpeaker :
-                line.speaker == DialogueSpeaker.Groom ? groomSpeaker : null;
+                line.speaker == DialogueSpeaker.Groom ? groomSpeaker :
+                line.speaker == DialogueSpeaker.GhostWoman ? ghostSpeaker : null;
             voice.spatialBlend = speaker ? 1f : 0f;
             voice.transform.SetParent(speaker ? speaker : transform, false);
             voice.transform.localPosition = Vector3.zero;
@@ -239,13 +246,48 @@ namespace ThatNight.ChapterOne
         }
 
         // ================================================================
-        // SUBTITLE RENDERING
+        // SUBTITLE RENDERING (Cached styles & strings — zero per-frame GC)
         // ================================================================
+
+        GUIStyle cachedNameStyle;
+        GUIStyle cachedTextStyle;
+        string lastRawSpeaker;
+        string cachedSpeakerUpper = "";
+        string lastRawText;
+        string cachedQuotedText = "";
 
         void OnGUI()
         {
             if (!ShowSubtitles || !IsPlaying || string.IsNullOrEmpty(CurrentLine.text))
                 return;
+
+            if (cachedNameStyle == null)
+            {
+                cachedNameStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 16,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                cachedTextStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 20,
+                    fontStyle = FontStyle.Normal,
+                    alignment = TextAnchor.MiddleCenter,
+                    wordWrap = true
+                };
+            }
+
+            if (lastRawSpeaker != CurrentLine.speakerName)
+            {
+                lastRawSpeaker = CurrentLine.speakerName;
+                cachedSpeakerUpper = string.IsNullOrEmpty(lastRawSpeaker) ? "" : lastRawSpeaker.ToUpperInvariant();
+            }
+            if (lastRawText != CurrentLine.text)
+            {
+                lastRawText = CurrentLine.text;
+                cachedQuotedText = "\"" + lastRawText + "\"";
+            }
 
             float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
             var prev = GUI.matrix;
@@ -253,44 +295,25 @@ namespace ThatNight.ChapterOne
 
             float sw = Screen.width / scale;
             float sh = Screen.height / scale;
-            float boxW = 850, boxH = 72;
+            const float boxW = 850f, boxH = 72f;
             float x = (sw - boxW) * 0.5f;
-            float y = sh - 115;
+            float y = sh - 115f;
 
-            // Dialogue banner: ONLY displays chat (Speaker and spoken line), NO instrument controls
             float alpha = lineAlpha;
 
-            // Background bar
             GUI.color = new Color(0, 0, 0, 0.65f * alpha);
             GUI.DrawTexture(new Rect(x - 20, y - 12, boxW + 40, boxH + 24), Texture2D.whiteTexture);
 
-            // Speaker name (color-coded)
             Color speakerColor = GetSpeakerColor(CurrentLine.speaker);
             speakerColor.a = alpha;
-
-            var nameStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 16,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            nameStyle.normal.textColor = speakerColor;
+            cachedNameStyle.normal.textColor = speakerColor;
 
             GUI.color = Color.white;
-            GUI.Label(new Rect(x, y, boxW, 24), CurrentLine.speakerName.ToUpperInvariant(), nameStyle);
+            GUI.Label(new Rect(x, y, boxW, 24), cachedSpeakerUpper, cachedNameStyle);
 
-            // Dialogue text
-            var textStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 20,
-                fontStyle = FontStyle.Normal,
-                alignment = TextAnchor.MiddleCenter,
-                wordWrap = true
-            };
-            textStyle.normal.textColor = new Color(0.95f, 0.94f, 0.88f, alpha);
-            GUI.Label(new Rect(x, y + 26, boxW, 46), $"\"{CurrentLine.text}\"", textStyle);
+            cachedTextStyle.normal.textColor = new Color(0.95f, 0.94f, 0.88f, alpha);
+            GUI.Label(new Rect(x, y + 26, boxW, 46), cachedQuotedText, cachedTextStyle);
 
-            // Circular Hold Space Skip indicator in bottom-right corner
             float progress = Mathf.Clamp01(spaceHoldTimer / SpaceHoldToSkipAll);
             CircleSkipUI.Draw(sw - 200f, sh - 52f, progress, "Hold Space to Skip");
 
@@ -301,16 +324,82 @@ namespace ThatNight.ChapterOne
         static Color GetSpeakerColor(DialogueSpeaker speaker) => speaker switch
         {
             DialogueSpeaker.Bride        => new Color(0.92f, 0.82f, 0.45f),  // Gold
-            DialogueSpeaker.Mother  => new Color(0.95f, 0.70f, 0.65f),  // Warm rose
-            DialogueSpeaker.Brother => new Color(0.55f, 0.78f, 0.95f),  // Soft sky blue
-            DialogueSpeaker.Groom   => new Color(0.65f, 0.90f, 0.70f),  // Soft green
+            DialogueSpeaker.Mother       => new Color(0.95f, 0.70f, 0.65f),  // Warm rose
+            DialogueSpeaker.Brother      => new Color(0.55f, 0.78f, 0.95f),  // Soft sky blue
+            DialogueSpeaker.Groom        => new Color(0.65f, 0.90f, 0.70f),  // Soft green
             DialogueSpeaker.Guest        => new Color(0.85f, 0.85f, 0.85f),  // Light grey
+            DialogueSpeaker.GhostWoman   => new Color(0.74f, 0.84f, 0.95f),  // Cold pale mist blue
             _                            => Color.white
         };
 
         // ================================================================
         // ALL CHAPTER 1 DIALOGUE DATA
         // ================================================================
+
+        public static List<DialogueLine> Scene00_ForestWakeLines() => new()
+        {
+            new(DialogueSpeaker.Bride, "Bride", "Where... where am I?", 2.5f),
+            new(DialogueSpeaker.Bride, "Bride", "How did I end up out here in the forest...?", 3.2f),
+            new(DialogueSpeaker.Bride, "Bride", "Wait... do you hear that? Someone is crying...", 3.4f)
+        };
+
+        public static List<DialogueLine> Scene00_AfterFlashlightLines() => new()
+        {
+            new(DialogueSpeaker.Bride, "Bride", "That crying is coming from deeper in the trees... I have to follow the voice.", 3.6f)
+        };
+
+        public static List<DialogueLine> Scene00_ForestMidTrailLines() => new()
+        {
+            new(DialogueSpeaker.Bride, "Bride", "The crying is getting louder... who could be out here in the dark?", 3.4f)
+        };
+
+        public static List<DialogueLine> Scene00_NearTreeCryingLines() => new()
+        {
+            new(DialogueSpeaker.Bride, "Bride", "There's someone beneath that giant tree...", 3.0f)
+        };
+
+        public static List<DialogueLine> Scene00_BrideAsksGhostLines() => new()
+        {
+            new(DialogueSpeaker.Bride, "Bride", "Excuse me... why are you crying out here alone?", 3.2f),
+            new(DialogueSpeaker.Bride, "Bride", "Are you hurt? What happened?", 2.6f)
+        };
+
+        // Emotional Stage 1 & 2: Remembering their love & his promises (reliving the pain, back turned)
+        public static List<DialogueLine> Scene00_GhostStory_LoveAndPromises() => new()
+        {
+            new(DialogueSpeaker.GhostWoman, "Crying Woman", "I loved him so much...", 3.2f),
+            new(DialogueSpeaker.GhostWoman, "Crying Woman", "I believed every word he told me.", 3.4f),
+            new(DialogueSpeaker.GhostWoman, "Crying Woman", "He promised that we would always be together.", 3.6f),
+            new(DialogueSpeaker.GhostWoman, "Crying Woman", "I trusted him... I gave him everything.", 3.6f),
+            new(DialogueSpeaker.Bride,      "Bride",        "I'm so sorry... what happened to him?", 3.0f)
+        };
+
+        // Emotional Stage 3 & 4: The betrayal & her suffering (Bride's sympathy turns to unease/fear)
+        public static List<DialogueLine> Scene00_GhostStory_BetrayalAndSuffering() => new()
+        {
+            new(DialogueSpeaker.GhostWoman, "Crying Woman", "But he lied to me...", 3.2f),
+            new(DialogueSpeaker.GhostWoman, "Crying Woman", "He betrayed me... and left me alone.", 3.6f),
+            new(DialogueSpeaker.GhostWoman, "Crying Woman", "Why did he do this to me?", 3.2f),
+            new(DialogueSpeaker.GhostWoman, "Crying Woman", "The person I trusted most in this world... was the one who tore me apart.", 4.2f),
+            new(DialogueSpeaker.Bride,      "Bride",        "Wait... are you okay? Your voice...", 2.8f)
+        };
+
+        // Emotional Stage 5: Crying stops completely -> sadness becomes hatred & anger
+        public static List<DialogueLine> Scene00_GhostStory_AngerAndSnap() => new()
+        {
+            new(DialogueSpeaker.GhostWoman, "Shadow", "I waited for him... I suffered for him...", 3.4f),
+            new(DialogueSpeaker.GhostWoman, "Shadow", "And now... I cannot forgive him!", 3.2f),
+            new(DialogueSpeaker.GhostWoman, "Shadow", "Why do you get to be happy?! You are my problem...!", 3.0f)
+        };
+
+        // Waking up terrified in bed: ringtone ringing loudly + Mom shouting from outside!
+        public static List<DialogueLine> Scene02_TerrifiedWakeAndMomShout() => new()
+        {
+            new(DialogueSpeaker.Bride,  "Bride",  "Hah...! My room...?! It was just a nightmare...", 3.0f),
+            new(DialogueSpeaker.Mother, "Mother", "Bopha!! Are you awake?! Your phone has been ringing for so long—why aren't you answering it?!", 4.2f),
+            new(DialogueSpeaker.Mother, "Mother", "Today is your wedding day! Hurry up and answer your phone!", 3.4f),
+            new(DialogueSpeaker.Bride,  "Bride",  "I'm awake, Mom! I hear it—I'm going to answer it right now!", 3.2f)
+        };
 
         public static List<DialogueLine> Scene01_WakingDialogue() => new()
         {

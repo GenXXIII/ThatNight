@@ -75,6 +75,8 @@ namespace ThatNight.ChapterOne
         void Update()
         {
             if(review||GameplayReview.IsRunning)return;
+            // Never let inspection debug hotkeys or cursor unlocks interfere with active story gameplay
+            if(ChapterOneDirector.Instance != null)return;
             if(Input.GetKeyDown(KeyCode.Escape)){Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
             if(Input.GetKeyDown(KeyCode.H))showHelp=!showHelp;
             if(Input.GetKeyDown(KeyCode.N))lighting.Apply(!lighting.daylight);

@@ -35,11 +35,20 @@ namespace ThatNight.ChapterOne
         public Transform lForearm;
         public Transform rForearm;
 
+        bool bonesSearched;
+
         void Start()
         {
             var cam = Camera.main;
             if (cam) playerCam = cam.transform;
+            CacheBones();
+        }
 
+        void CacheBones()
+        {
+            if (bonesSearched) return;
+            bonesSearched = true;
+            if (!head) head = FindBone(transform, "Bip01 Head");
             if (!lUpperArm) lUpperArm = FindBone(transform, "Bip01 L UpperArm");
             if (!rUpperArm) rUpperArm = FindBone(transform, "Bip01 R UpperArm");
             if (!lForearm) lForearm = FindBone(transform, "Bip01 L Forearm");
@@ -59,10 +68,7 @@ namespace ThatNight.ChapterOne
 
         void LateUpdate()
         {
-            if (!lUpperArm) lUpperArm = FindBone(transform, "Bip01 L UpperArm");
-            if (!rUpperArm) rUpperArm = FindBone(transform, "Bip01 R UpperArm");
-            if (!lForearm) lForearm = FindBone(transform, "Bip01 L Forearm");
-            if (!rForearm) rForearm = FindBone(transform, "Bip01 R Forearm");
+            if (!bonesSearched) CacheBones();
 
             // Natural arm resting pose down beside hips
             float breath = Application.isPlaying ? Mathf.Sin(Time.time * 1.6f + 1f) * 1.1f : 0f;
@@ -72,7 +78,6 @@ namespace ThatNight.ChapterOne
             if (rForearm) rForearm.localEulerAngles = new Vector3(358.92f, 8.0f, 2.98f);
 
             if (!Application.isPlaying) return;
-            if (!head) head = FindBone(transform, "Bip01 Head");
             if (!playerCam) { var cam = Camera.main; if (cam) playerCam = cam.transform; }
             if (!head || !playerCam) return;
 

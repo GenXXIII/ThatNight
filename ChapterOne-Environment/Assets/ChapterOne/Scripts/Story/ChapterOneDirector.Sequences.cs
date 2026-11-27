@@ -7,67 +7,500 @@ namespace ThatNight.ChapterOne
 {
     public sealed partial class ChapterOneDirector
     {
-        IEnumerator Scene01_OpeningCinematic()
+        float GroundHeightAt(float x, float z, float fallbackY = 20.88f)
         {
-            currentScene = GameScene.Scene01_Opening;
+            if (Physics.Raycast(new Vector3(x, 80f, z), Vector3.down, out var hit, 140f, ~0, QueryTriggerInteraction.Ignore))
+                return hit.point.y;
+            return fallbackY;
+        }
+
+        IEnumerator AutoWalkCameraTo(Vector3 targetEyePos, Vector3 lookAtWorld, float duration)
+        {
+            var cam = MainCam;
+            if (!cam) yield break;
+
+            Vector3 startPos = cam.transform.position;
+            Quaternion startRot = cam.transform.rotation;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float u = Mathf.Clamp01(elapsed / duration);
+                float smooth = Mathf.SmoothStep(0f, 1f, u);
+                Vector3 pos = Vector3.Lerp(startPos, targetEyePos, smooth);
+                // Natural footsteps head-bob during auto-approach
+                float bob = Mathf.Sin(elapsed * 8.5f) * 0.018f * (1f - u * 0.6f);
+                pos.y += bob;
+
+                Vector3 lookDir = lookAtWorld - pos;
+                Quaternion targetRot = lookDir.sqrMagnitude > 0.01f ? Quaternion.LookRotation(lookDir.normalized) : startRot;
+                Quaternion rot = Quaternion.Slerp(startRot, targetRot, smooth);
+
+                if (explorer != null && explorer.Walking)
+                    explorer.MoveRigAndCamera(pos, rot, seated: false);
+                else
+                    cam.transform.SetPositionAndRotation(pos, rot);
+
+                yield return null;
+            }
+
+            Vector3 finalDir = (lookAtWorld - targetEyePos).normalized;
+            Quaternion finalRot = finalDir.sqrMagnitude > 0.01f ? Quaternion.LookRotation(finalDir) : startRot;
+            TeleportPlayer(targetEyePos, finalRot, seated: false);
+        }
+
+        // Winding left-right forest trail far away from BOTH the Big Tree and the Wedding House.
+        // Wedding House sits at (0, 22) -> over 1,350m away and completely blocked by the corridor.
+        // Big Tree sits at (-880, 1020) -> ~760m of winding left-and-right S-curves through dense jungle.
+        public static readonly Vector2[] ForestNightmareTrail =
+        {
+            new(-1240f, 560f),   // 0: Unconscious wake-up clearing deep in western jungle
+            new(-1145f, 625f),   // 1: Bend 1 — curves RIGHT (East-Northeast)
+            new(-1215f, 710f),   // 2: Bend 2 — curves LEFT (Northwest)
+            new(-1055f, 775f),   // 3: Bend 3 — curves RIGHT (East-Northeast)
+            new(-1110f, 865f),   // 4: Bend 4 — curves LEFT (Northwest)
+            new(-935f,  910f),   // 5: Bend 5 — curves RIGHT toward Sacred Glade
+            new(-866.5f, 954f),  // 6: Big Tree auto-walk cinematic trigger (open glade bay)
+            new(-864.2f, 973.0f) // 7: Stop position behind the crying woman's back
+        };
+
+        public static readonly Vector3 SacredTreeGhostPos = new(-863.5f, 20.88f, 976.5f);
+
+        // ================================================================
+        // SCENE 00 — OPENING NIGHTMARE IN THE HORROR FOREST
+        // 1. Bride wakes unconscious deep in the forest (far from Big Tree & Wedding House),
+        //    glances around confused, and hears someone crying in the distance.
+        // 2. Stands up -> Task: Pick up the flashlight into her hand.
+        // 3. Walks following the crying voice along a winding left-right forest trail
+        //    (corridor prevents direct straight shortcut & blocks returning to the wedding house).
+        // 4. Reaches the Big Tree -> auto-walk opening cinematic to behind the crying woman
+        //    (Bride sees ONLY her back).
+        // 5. Bride asks why she is crying -> Ghost relives her love, promises, betrayal,
+        //    suffering, and snapping anger (sympathy turns to fear).
+        // 6. Ghost slowly turns around with an unnatural circling neck, stalks in a scary pose
+        //    with her shadowed face clearly visible, until filling the entire screen -> smash cut!
+        // ================================================================
+
+        IEnumerator Scene00_ForestNightmareSequence()
+        {
+            currentScene = GameScene.Scene00_ForestNightmare;
+            isStandingUp = false;
+            hasPickedUpFlashlightOnce = false;
+            shadowScareFlash = 0f;
             LockPlayer();
-            SetAtmosphere(AtmosphereStage.Dawn4AM);
-            fade = 1f;
+            SetAtmosphere(AtmosphereStage.NightHorror);
+            RenderSettings.fogDensity = 0.032f;
+            if (ambience) ambience.SetScene(AmbienceScene.Horror);
+
+            if (forestNightmareRoot) forestNightmareRoot.gameObject.SetActive(true);
+
+            Vector2 spawnXZ = ForestNightmareTrail[0];
+            float spawnGroundY = GroundHeightAt(spawnXZ.x, spawnXZ.y);
+            Vector2 bend1XZ = ForestNightmareTrail[1];
+            Vector3 toBend1 = new Vector3(bend1XZ.x - spawnXZ.x, 0f, bend1XZ.y - spawnXZ.y).normalized;
+            float wakeYaw = Mathf.Atan2(toBend1.x, toBend1.z) * Mathf.Rad2Deg;
+
+            // Place Ghost Woman in the open moonlit glade bay beneath the colossal Sacred World Tree
+            // facing North-Northeast (into the trunk) so the Bride from the South sees ONLY her back!
+            Vector3 ghostWorldPos = new Vector3(SacredTreeGhostPos.x, GroundHeightAt(SacredTreeGhostPos.x, SacredTreeGhostPos.z), SacredTreeGhostPos.z);
+            if (ghostWoman)
+            {
+                ghostWoman.transform.SetPositionAndRotation(ghostWorldPos, Quaternion.Euler(0f, 12f, 0f));
+                if (clipWomanCrying && !ghostWoman.cryingClip) ghostWoman.cryingClip = clipWomanCrying;
+                if (clipNeckCrack && !ghostWoman.neckCrackClip) ghostWoman.neckCrackClip = clipNeckCrack;
+                if (clipScream && !ghostWoman.screamClip) ghostWoman.screamClip = clipScream;
+                ghostWoman.SetState(GhostAnimState.Crying);
+                ghostWoman.SetCryingAudioActive(false);
+            }
+
+            // Place the Flashlight on the forest floor ~0.95m in front-right of where the Bride wakes up
+            Vector3 rightDir = Vector3.Cross(Vector3.up, toBend1).normalized;
+            Vector3 flashXZ = new Vector3(spawnXZ.x, 0f, spawnXZ.y) + toBend1 * 0.95f + rightDir * 0.28f;
+            float flashGroundY = GroundHeightAt(flashXZ.x, flashXZ.z, spawnGroundY);
+            Vector3 flashWorldPos = new Vector3(flashXZ.x, flashGroundY + 0.045f, flashXZ.z);
+            Quaternion flashWorldRot = Quaternion.Euler(0f, wakeYaw + 32f, 90f);
+            if (forestFlashlight)
+            {
+                forestFlashlight.ResetToGround(flashWorldPos, flashWorldRot);
+            }
+
+            // Configure forest corridor: locked to wake-up clearing until flashlight is picked up
+            if (explorer != null)
+            {
+                explorer.RestrictToCompound = false;
+                explorer.FlashlightUnlocked = false;
+                if (explorer.flashlight) explorer.flashlight.enabled = false;
+                explorer.WalkSpeedMultiplier = 2.6f; // Brisk urgent forest walk across long winding trail
+                explorer.SetTrailCorridor(ForestNightmareTrail, halfWidth: 24f, maxDistance: 10f);
+            }
+
+            // Soft dark-adapted moonlit fill on camera so ground & flashlight glint are readable before pickup
+            Light dreamEyeFill = null;
+            var fillCam = MainCam;
+            if (fillCam)
+            {
+                var fillObj = new GameObject("Nightmare Eye Fill");
+                fillObj.transform.SetParent(fillCam.transform, false);
+                fillObj.transform.localPosition = new Vector3(0f, 0.1f, 0.2f);
+                dreamEyeFill = fillObj.AddComponent<Light>();
+                dreamEyeFill.type = LightType.Point;
+                dreamEyeFill.color = new Color(0.32f, 0.44f, 0.62f);
+                dreamEyeFill.range = 12f;
+                dreamEyeFill.intensity = 0.42f;
+                dreamEyeFill.shadows = LightShadows.None;
+            }
+
+            // ------------------------------------------------------------
+            // PHASE 1: UNCONSCIOUS ON FOREST FLOOR -> GLANCE CONFUSED & HEAR CRYING
+            // ------------------------------------------------------------
+            if (explorer != null) explorer.CinematicOverride = true;
+            Vector3 lyingPos = new Vector3(spawnXZ.x, spawnGroundY + 0.30f, spawnXZ.y);
+            Quaternion lyingRot = Quaternion.Euler(-12f, wakeYaw, -14f);
+            var cam = MainCam;
+            if (cam) cam.transform.SetPositionAndRotation(lyingPos, lyingRot);
+            TeleportPlayer(lyingPos, lyingRot);
+
+            fade = 0f;
             objective = "";
 
-            var cam = MainCam;
-            if (ambience) ambience.SetScene(AmbienceScene.Dawn);
-
-            // ================================================================
-            // CLIP 1: TOP AERIAL OVERVIEW CURVING TO THE LEFT (PHOTO 1)
-            // Cruises at steady 10 km/h with seamless overlapping cross-fade
-            // ================================================================
-            Vector3 shot1StartPos = new Vector3(32.0f, 38.0f, -38.0f);
-            Quaternion shot1StartRot = Quaternion.Euler(34f, -42f, 0f);
-            Vector3 shot1EndPos = new Vector3(10.0f, 35.0f, -44.0f);
-            Quaternion shot1EndRot = Quaternion.Euler(32f, -14f, 0f);
-
-            if (cam) cam.transform.SetPositionAndRotation(shot1StartPos, shot1StartRot);
-            if (sfx && clipRooster) sfx.PlayOneShot(clipRooster, 0.6f);
-
-            objective = "Battambang Countryside — April 2006";
-            yield return GlideCameraCruising(shot1StartPos, shot1EndPos, shot1StartRot, shot1EndRot, 4.5f, fadeInTime: 0.8f, fadeOutTime: 0.5f);
-            if (skipOpening)
+            // Crying voice echoes from ahead along the first bend as she wakes up!
+            Vector3 initialCryPos = new Vector3(spawnXZ.x, spawnGroundY + 1.4f, spawnXZ.y) + toBend1 * 28f;
+            if (ghostWoman)
             {
-                fade = 1f;
-                Vector3 pPos = new Vector3(-9.79f, 24.55f, 25.05f);
-                Quaternion pRot = Quaternion.Euler(-6f, 138f, 0f);
-                if (cam) cam.transform.SetPositionAndRotation(pPos, pRot);
+                ghostWoman.SetCryBeaconWorldPosition(initialCryPos, 0.48f);
+            }
+
+            if (eyelids)
+            {
+                bool awake = false;
+                yield return eyelids.PlayWakingSequence(
+                    onHalfAwake: () =>
+                    {
+                        if (ghostWoman) ghostWoman.SetCryingAudioActive(true, 0.48f);
+                    },
+                    onFullyAwake: () => { awake = true; }
+                );
+                while (!awake) yield return null;
+            }
+            else
+            {
+                yield return FadeFromBlack(1.4f);
+                if (ghostWoman) ghostWoman.SetCryingAudioActive(true, 0.48f);
+            }
+
+            // Confused glancing around left and right from the forest floor while hearing the crying voice
+            Vector3 proppedPos = new Vector3(spawnXZ.x, spawnGroundY + 0.58f, spawnXZ.y);
+            Quaternion glanceLeft  = Quaternion.Euler(-4f, wakeYaw - 48f, -5f);
+            Quaternion glanceRight = Quaternion.Euler(-2f, wakeYaw + 54f, 4f);
+            Quaternion glanceBackL = Quaternion.Euler(4f,  wakeYaw - 28f, -2f);
+            Quaternion lookTowardFlash = Quaternion.LookRotation((flashWorldPos - new Vector3(spawnXZ.x, spawnGroundY + 1.54f, spawnXZ.y)).normalized);
+
+            yield return GlideCamera(lyingPos, proppedPos, lyingRot, glanceLeft, 1.15f);
+            yield return new WaitForSeconds(0.20f);
+            yield return GlideCamera(proppedPos, proppedPos, glanceLeft, glanceRight, 1.30f);
+            yield return new WaitForSeconds(0.18f);
+            yield return GlideCamera(proppedPos, proppedPos, glanceRight, glanceBackL, 0.95f);
+
+            if (narrative)
+            {
+                yield return narrative.PlayAndWait(ChapterOneNarrative.Scene00_ForestWakeLines());
+            }
+
+            // Stand up smoothly from the forest floor looking toward the flashlight
+            Vector3 standPos = new Vector3(spawnXZ.x, spawnGroundY + 1.54f, spawnXZ.y);
+            Quaternion curRot = MainCam ? MainCam.transform.rotation : glanceBackL;
+            yield return GlideCamera(proppedPos, standPos, curRot, lookTowardFlash, 1.25f);
+            if (explorer != null) explorer.CinematicOverride = false;
+            TeleportPlayer(standPos, lookTowardFlash);
+
+            // ------------------------------------------------------------
+            // PHASE 2: TASK 1 — PICK UP FLASHLIGHT TO HAND
+            // ------------------------------------------------------------
+            isStandingUp = true;
+            UnlockPlayer();
+            if (explorer != null)
+            {
+                explorer.RestrictToCompound = false;
+                explorer.WalkSpeedMultiplier = 2.6f;
+                explorer.SetTrailCorridor(ForestNightmareTrail, halfWidth: 16f, maxDistance: 10f);
+            }
+
+            objective = "Pick up the flashlight";
+            if (forestFlashlight != null)
+            {
+                yield return new WaitUntil(() => forestFlashlight == null || forestFlashlight.IsPickedUp || currentScene != GameScene.Scene00_ForestNightmare);
+            }
+
+            if (currentScene != GameScene.Scene00_ForestNightmare)
+            {
+                if (dreamEyeFill) Destroy(dreamEyeFill.gameObject);
                 yield break;
             }
 
-            // ================================================================
-            // CLIP 3: FRONT ENTRANCE RED CARPET STRAIGHT FORWARD (PHOTO 3)
-            // Immediately starts cruising forward down the aisle at steady 10 km/h
-            // ================================================================
-            Vector3 shot3StartPos = new Vector3(-0.5f, 22.8f, -11.0f);
-            Quaternion shot3StartRot = Quaternion.Euler(4f, 0f, 0f);
-            Vector3 shot3EndPos = new Vector3(-0.5f, 23.2f, -3.5f);
-            Quaternion shot3EndRot = Quaternion.Euler(6f, 0f, 0f);
+            hasPickedUpFlashlightOnce = true;
+            if (dreamEyeFill) dreamEyeFill.intensity = 0.22f;
 
-            if (cam) cam.transform.SetPositionAndRotation(shot3StartPos, shot3StartRot);
-            objective = "Chapter 1: The Wedding";
-            yield return GlideCameraCruising(shot3StartPos, shot3EndPos, shot3StartRot, shot3EndRot, 4.8f, fadeInTime: 0.5f, fadeOutTime: 1.0f);
+            if (explorer != null)
+            {
+                explorer.FlashlightUnlocked = true;
+                explorer.SetTrailCorridor(ForestNightmareTrail, halfWidth: 24f, maxDistance: float.PositiveInfinity);
+            }
 
-            // Arrive in darkness resting on the bridal bed pillow before Scene 02 begins
-            Vector3 pillowPos = new Vector3(-9.79f, 24.55f, 25.05f);
-            Quaternion pillowRot = Quaternion.Euler(-6f, 138f, 0f);
-            if (cam) cam.transform.SetPositionAndRotation(pillowPos, pillowRot);
+            if (narrative)
+            {
+                yield return narrative.PlayAndWait(ChapterOneNarrative.Scene00_AfterFlashlightLines());
+            }
+
+            // ------------------------------------------------------------
+            // PHASE 3: TASK 2 — FOLLOW CRYING VOICE ALONG WINDING LEFT-RIGHT PATH
+            // ------------------------------------------------------------
+            objective = "Follow the crying voice through the forest";
+            float totalLen = explorer != null ? Mathf.Max(1f, explorer.TrailTotalLength) : 760f;
+            float triggerDist = Vector2.Distance(ForestNightmareTrail[ForestNightmareTrail.Length - 2], ForestNightmareTrail[ForestNightmareTrail.Length - 1]);
+            float triggerProgress = Mathf.Max(totalLen - triggerDist - 16f, totalLen * 0.88f);
+            bool playedMidTrailLine = false;
+            bool remarkedGiantTree = false;
+
+            while (currentScene == GameScene.Scene00_ForestNightmare)
+            {
+                cam = MainCam;
+                if (cam)
+                {
+                    Vector3 cur = cam.transform.position;
+                    Vector2 cur2 = new(cur.x, cur.z);
+                    float prog = explorer != null ? explorer.GetTrailProgress(cur2) : 0f;
+                    if (prog > 6f) hasMovedAround = true;
+
+                    float distToGhost = Vector2.Distance(cur2, new Vector2(ghostWorldPos.x, ghostWorldPos.z));
+
+                    // Guide the player around every left/right bend using the 3D crying voice
+                    if (ghostWoman)
+                    {
+                        if (distToGhost <= 90f)
+                        {
+                            ghostWoman.LockCryBeaconToBody(0.95f);
+                            if (!remarkedGiantTree)
+                            {
+                                remarkedGiantTree = true;
+                                if (narrative) yield return narrative.PlayAndWait(ChapterOneNarrative.Scene00_NearTreeCryingLines());
+                            }
+                        }
+                        else if (explorer != null)
+                        {
+                            Vector2 ahead2 = explorer.SampleTrailAtDistance(prog + 36f);
+                            float aheadY = GroundHeightAt(ahead2.x, ahead2.y, spawnGroundY) + 1.35f;
+                            float vol = Mathf.Lerp(0.46f, 0.92f, Mathf.Clamp01(prog / Mathf.Max(1f, triggerProgress)));
+                            ghostWoman.SetCryBeaconWorldPosition(new Vector3(ahead2.x, aheadY, ahead2.y), vol);
+                        }
+                    }
+
+                    if (!playedMidTrailLine && prog >= totalLen * 0.45f)
+                    {
+                        playedMidTrailLine = true;
+                        if (narrative) yield return narrative.PlayAndWait(ChapterOneNarrative.Scene00_ForestMidTrailLines());
+                    }
+
+                    if (prog >= triggerProgress || distToGhost <= 28f)
+                    {
+                        break;
+                    }
+                }
+                yield return null;
+            }
+
+            // ------------------------------------------------------------
+            // PHASE 3: BIG TREE AUTO-WALK CINEMATIC TO BEHIND CRYING WOMAN (OPEN GLADE BAY)
+            // ------------------------------------------------------------
+            SequenceBusy = true;
+            try
+            {
+                LockPlayer();
+                objective = "";
+                if (ghostWoman)
+                {
+                    ghostWoman.LockCryBeaconToBody(0.96f);
+                    ghostWoman.SetState(GhostAnimState.Crying);
+                }
+
+                // Smooth cinematic auto-walk through open glade bay behind the crying woman's back
+                Vector3 ghostBackLook = ghostWorldPos + Vector3.up * 0.92f;
+                Vector2 wpEntry = ForestNightmareTrail[ForestNightmareTrail.Length - 2];
+                Vector2 wpStop  = ForestNightmareTrail[ForestNightmareTrail.Length - 1];
+
+                Vector3 curEye = MainCam ? MainCam.transform.position : new Vector3(wpEntry.x, spawnGroundY + 1.54f, wpEntry.y);
+                Vector3 midGladePos = new Vector3(wpEntry.x, GroundHeightAt(wpEntry.x, wpEntry.y) + 1.54f, wpEntry.y);
+                Vector3 stopBehindPos = new Vector3(wpStop.x, GroundHeightAt(wpStop.x, wpStop.y) + 1.54f, wpStop.y);
+
+                if (curEye.z < wpEntry.y - 2f)
+                {
+                    yield return AutoWalkCameraTo(midGladePos, ghostBackLook, 3.0f);
+                }
+                yield return AutoWalkCameraTo(stopBehindPos, ghostBackLook, 3.2f);
+
+                cam = MainCam;
+                float baseYaw = cam ? cam.transform.eulerAngles.y : 0f;
+                if (explorer != null)
+                {
+                    explorer.MovementLocked = true;
+                    explorer.ControlsLocked = false;
+                    explorer.LookClamped = true;
+                    explorer.ClampCenterYaw = baseYaw;
+                    explorer.ClampYawRange = 18f;
+                    explorer.GlanceLocked = false;
+                }
+
+                // ------------------------------------------------------------
+                // PHASE 5: BRIDE ASKS -> GHOST RELIVES HER PAIN (ONLY HER BACK VISIBLE)
+                // Emotional progression: Love -> Promises -> Betrayal -> Suffering -> Anger
+                // ------------------------------------------------------------
+                if (narrative) yield return narrative.PlayAndWait(ChapterOneNarrative.Scene00_BrideAsksGhostLines());
+
+                if (ghostWoman) ghostWoman.SetState(GhostAnimState.Storytelling);
+
+                // Step slightly closer at the end of Story 1
+                if (narrative) yield return narrative.PlayAndWait(ChapterOneNarrative.Scene00_GhostStory_LoveAndPromises());
+                Vector3 s1Pos = Vector3.Lerp(stopBehindPos, new Vector3(ghostWorldPos.x, stopBehindPos.y, ghostWorldPos.z), 0.16f);
+                yield return AutoWalkCameraTo(s1Pos, ghostBackLook, 0.9f);
+
+                // Stage 2: Betrayal & loss (Bride follows at end of story part)
+                if (narrative) yield return narrative.PlayAndWait(ChapterOneNarrative.Scene00_GhostStory_BetrayalAndSuffering());
+                Vector3 s2Pos = Vector3.Lerp(stopBehindPos, new Vector3(ghostWorldPos.x, stopBehindPos.y, ghostWorldPos.z), 0.30f);
+                yield return AutoWalkCameraTo(s2Pos, ghostBackLook, 0.9f);
+
+                // Stage 5: Crying stops completely -> sadness becomes pure hatred & anger
+                if (ghostWoman) ghostWoman.SetState(GhostAnimState.AngerBuilding);
+                if (sfx && clipRumble) sfx.PlayOneShot(clipRumble, 0.80f);
+                if (forestFlashlight) forestFlashlight.SetHorrorFlicker(0.38f);
+                yield return new WaitForSeconds(0.55f);
+
+                if (narrative) yield return narrative.PlayAndWait(ChapterOneNarrative.Scene00_GhostStory_AngerAndSnap());
+
+                // ------------------------------------------------------------
+                // PHASE 6: SLOW TURN + CIRCLE NECK + SCARY SHADOW WALK TO FULL SCREEN
+                // ------------------------------------------------------------
+                yield return new WaitForSeconds(0.25f);
+                if (explorer != null)
+                {
+                    // Prevent ForestExploration.Update() from fighting our horror camera tracking!
+                    explorer.CinematicOverride = true;
+                    explorer.LookClamped = false;
+                    explorer.ControlsLocked = true;
+                    explorer.GlanceLocked = true;
+                }
+                if (forestFlashlight) forestFlashlight.SetHorrorFlicker(0.75f);
+
+                Vector3 brideEyePos = MainCam ? MainCam.transform.position : stopBehindPos;
+                if (ghostWoman)
+                {
+                    ghostWoman.SetState(GhostAnimState.AngryTurnAndNeckCircle, brideEyePos);
+                }
+
+                // Watch in frozen terror as she slowly turns around while twisting/circling her neck!
+                float turnWatch = 0f;
+                while (turnWatch < 2.75f)
+                {
+                    turnWatch += Time.deltaTime;
+                    if (MainCam && ghostWoman)
+                    {
+                        Vector3 lookPt = ghostWoman.GetHeadWorldPosition();
+                        Quaternion targetR = Quaternion.LookRotation((lookPt - MainCam.transform.position).normalized);
+                        MainCam.transform.rotation = Quaternion.Slerp(MainCam.transform.rotation, targetR, Time.deltaTime * 5f);
+                    }
+                    shake = Mathf.Lerp(0.004f, 0.014f, turnWatch / 2.75f);
+                    yield return null;
+                }
+
+                // Terrifying pose & stalking walk straight at the Bride until her shadow face fills the screen!
+                bool fullScreenReached = false;
+                if (forestFlashlight) forestFlashlight.SetHorrorFlicker(1.0f);
+                if (ghostWoman)
+                {
+                    ghostWoman.SetState(GhostAnimState.ScaryWalk, brideEyePos, () => fullScreenReached = true);
+                }
+
+                float stalkSafety = 0f;
+                while (!fullScreenReached && stalkSafety < 10.5f)
+                {
+                    stalkSafety += Time.deltaTime;
+                    if (MainCam && ghostWoman)
+                    {
+                        Vector3 facePt = ghostWoman.GetHeadWorldPosition();
+                        float dist = Vector3.Distance(MainCam.transform.position, facePt);
+                        Quaternion targetR = Quaternion.LookRotation((facePt - MainCam.transform.position).normalized);
+                        MainCam.transform.rotation = Quaternion.Slerp(MainCam.transform.rotation, targetR, Time.deltaTime * 10f);
+                        shake = Mathf.Lerp(0.008f, 0.055f, Mathf.InverseLerp(6.5f, 0.45f, dist));
+                    }
+                    yield return null;
+                }
+
+                // Split-second terrifying full-screen shadow close-up before instant smash-cut!
+                shadowScareFlash = 1.0f;
+                shake = 0.09f;
+                yield return new WaitForSeconds(0.18f);
+
+                // INSTANT SMASH-CUT TO PURE BLACK
+                shadowScareFlash = 0f;
+                shake = 0f;
+                fade = 1.0f;
+                objective = "";
+                if (dreamEyeFill) Destroy(dreamEyeFill.gameObject);
+                if (ghostWoman) ghostWoman.SetState(GhostAnimState.Hidden);
+                if (forestFlashlight) forestFlashlight.HideAfterNightmare(explorer);
+                if (ambience) ambience.SetScene(AmbienceScene.Silent);
+
+                yield return new WaitForSeconds(0.85f);
+
+                if (forestNightmareRoot) forestNightmareRoot.gameObject.SetActive(false);
+                if (explorer != null)
+                {
+                    explorer.CinematicOverride = false;
+                    explorer.GlanceLocked = false;
+                    explorer.LookClamped = false;
+                    explorer.ClearTrailCorridor();
+                    explorer.RestrictToCompound = true;
+                    explorer.FlashlightUnlocked = false;
+                    explorer.WalkSpeedMultiplier = 1.0f;
+                }
+            }
+            finally
+            {
+                shadowScareFlash = 0f;
+                shake = 0f;
+                if (explorer != null) explorer.CinematicOverride = false;
+                if (dreamEyeFill) Destroy(dreamEyeFill.gameObject);
+                SequenceBusy = false;
+            }
         }
 
         // ================================================================
-        // SCENE 02 — WAKING UP BECAUSE PHONE IS RINGING BESIDE BED
+        // SCENE 02 — TERRIFIED WAKE UP IN BED -> RINGTONE + MOM SHOUTS OUTSIDE -> ANSWER PHONE
         // ================================================================
 
-        IEnumerator Scene02_WakeUpToPhoneCall()
+        IEnumerator Scene02_WakeUpToPhoneCall(bool fromNightmare = false)
         {
             currentScene = GameScene.Scene02_WakingUpAndPhone;
-            isStandingUp = false; // Keeps 3D body completely hidden during bed wake-up so no glitch is visible!
+            isStandingUp = false;
+
+            SetAtmosphere(AtmosphereStage.Dawn4AM);
+            if (ambience) ambience.SetScene(AmbienceScene.Dawn);
+            if (explorer != null)
+            {
+                explorer.CinematicOverride = true;
+                explorer.ClearTrailCorridor();
+                explorer.RestrictToCompound = true;
+                explorer.FlashlightUnlocked = false;
+                if (explorer.flashlight) explorer.flashlight.enabled = false;
+                explorer.WalkSpeedMultiplier = 1.0f;
+            }
+            if (forestNightmareRoot) forestNightmareRoot.gameObject.SetActive(false);
+            if (ghostWoman) ghostWoman.SetState(GhostAnimState.Hidden);
+            if (forestFlashlight) forestFlashlight.HideAfterNightmare(explorer);
+            if (mother)
+            {
+                mother.gameObject.SetActive(true);
+                mother.MoveToPosition(MotherPosition.LivingRoom);
+            }
 
             // Camera rests on the bridal bed pillow
             Vector3 pillowPos = new Vector3(-9.79f, 24.55f, 25.05f);
@@ -76,45 +509,85 @@ namespace ThatNight.ChapterOne
             if (cam) cam.transform.SetPositionAndRotation(pillowPos, pillowRot);
             TeleportPlayer(pillowPos, pillowRot);
 
-            // Crucial: Clear director fullscreen fade quad so camera and eyelids become visible!
             fade = 0f;
 
-            if (eyelids)
+            if (fromNightmare)
             {
-                bool fullyDone = false;
-                yield return eyelids.PlayWakingSequence(
-                    onHalfAwake: () => 
-                    { 
-                        objective = "Wedding Day — 4:00 AM";
-                        // Ringtone begins ringing only as the player opens their eyes!
-                        if (nokia) nokia.TriggerIncomingCall();
-                    },
-                    onFullyAwake: () => { fullyDone = true; }
-                );
-                while (!fullyDone) yield return null;
+                // Phone is ALREADY ringing loudly as she jolts awake terrified in bed!
+                if (nokia) nokia.TriggerIncomingCall();
+                if (sfx && clipShockGasp) sfx.PlayOneShot(clipShockGasp, 0.95f);
+                StartCoroutine(ShakeCamera(0.45f, 0.03f));
+
+                if (eyelids)
+                {
+                    bool shockDone = false;
+                    yield return eyelids.PlayShockWakeSequence(
+                        onEyesOpen: () => { objective = "Wedding Day — 4:00 AM"; },
+                        onFullyAwake: () => { shockDone = true; }
+                    );
+                    while (!shockDone) yield return null;
+                }
+                else
+                {
+                    yield return FadeFromBlack(0.45f);
+                    objective = "Wedding Day — 4:00 AM";
+                }
+
+                if (explorer != null)
+                {
+                    explorer.CinematicOverride = false;
+                    explorer.SetLookDirection(138f, -6f);
+                    explorer.ClampCenterYaw = 138f;
+                    explorer.ClampYawRange = 30f;
+                    explorer.LookClamped = true;
+                    explorer.GlanceLocked = false;
+                    explorer.MovementLocked = true;
+                    explorer.ControlsLocked = false;
+                }
+
+                // Terrified gasp -> Mom shouts loudly from outside because phone has been ringing a long time -> Bride answers Mom!
+                if (narrative)
+                {
+                    yield return narrative.PlayAndWait(ChapterOneNarrative.Scene02_TerrifiedWakeAndMomShout());
+                }
             }
             else
             {
-                yield return FadeFromBlack(1.6f);
-                objective = "Wedding Day — 4:00 AM";
-                if (nokia) nokia.TriggerIncomingCall();
-            }
+                if (eyelids)
+                {
+                    bool fullyDone = false;
+                    yield return eyelids.PlayWakingSequence(
+                        onHalfAwake: () =>
+                        {
+                            objective = "Wedding Day — 4:00 AM";
+                            if (nokia) nokia.TriggerIncomingCall();
+                        },
+                        onFullyAwake: () => { fullyDone = true; }
+                    );
+                    while (!fullyDone) yield return null;
+                }
+                else
+                {
+                    yield return FadeFromBlack(1.6f);
+                    objective = "Wedding Day — 4:00 AM";
+                    if (nokia) nokia.TriggerIncomingCall();
+                }
 
-            // Bride murmurs groggily as she opens her eyes (glance left and right slightly from the pillow)
-            if (explorer != null)
-            {
-                explorer.SetLookDirection(138f, -6f);
-                explorer.ClampCenterYaw = 138f;
-                explorer.ClampYawRange = 25f;
-                explorer.LookClamped = true;
-                explorer.GlanceLocked = false;
-                explorer.MovementLocked = true;
-                explorer.ControlsLocked = false;
-            }
+                if (explorer != null)
+                {
+                    explorer.SetLookDirection(138f, -6f);
+                    explorer.ClampCenterYaw = 138f;
+                    explorer.ClampYawRange = 25f;
+                    explorer.LookClamped = true;
+                    explorer.GlanceLocked = false;
+                    explorer.MovementLocked = true;
+                    explorer.ControlsLocked = false;
+                }
 
-            if (narrative)
-            {
-                yield return narrative.PlayAndWait(ChapterOneNarrative.Scene01_WakingDialogue());
+                if (narrative)
+                {
+                    yield return narrative.PlayAndWait(ChapterOneNarrative.Scene01_WakingDialogue());
+                }
             }
 
             if (explorer != null)
@@ -123,93 +596,31 @@ namespace ThatNight.ChapterOne
                 explorer.ControlsLocked = true;
             }
 
-            // Bride rises from bed (camera sits up and rises to standing, but body remains hidden so no glitch is visible)
+            // Bride rises from bed and goes straight to answer the ringing phone
             yield return RiseFromBed();
 
-            // Once standing upright on the wooden floor beside the bed, activate body and unlock player controls
             isStandingUp = true;
             UnlockPlayer();
 
-            // 1. First tutorial prompt: Look around (glance/look around for 2 seconds)
-            // Keep movement locked briefly so player focuses on looking around first
-            if (explorer != null) explorer.MovementLocked = true;
-            objective = "Look around";
-
-            float lookActiveTime = 0f;
-            float lookSafety = 0f;
-            while (lookActiveTime < 2.0f && lookSafety < 10.0f)
+            if (!fromNightmare)
             {
-                lookSafety += Time.deltaTime;
-                float mouseDelta = Mathf.Abs(Input.GetAxis("Mouse X")) + Mathf.Abs(Input.GetAxis("Mouse Y"));
-                if (mouseDelta > 0.02f)
-                {
-                    lookActiveTime += Time.deltaTime;
-                }
-                yield return null;
-            }
+                if (explorer != null) explorer.MovementLocked = true;
+                objective = "Look around";
 
-            // Enable movement for directional WASD walk tutorials
-            if (explorer != null) explorer.MovementLocked = false;
-
-            // 2. Move Forward (W) - 1 second
-            objective = "Move Forward (W)";
-            float fwdTime = 0f;
-            float fwdSafety = 0f;
-            while (fwdTime < 1.0f && fwdSafety < 12.0f)
-            {
-                fwdSafety += Time.deltaTime;
-                if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow) || Input.GetAxisRaw("Vertical") > 0.2f)
+                float lookActiveTime = 0f;
+                float lookSafety = 0f;
+                while (lookActiveTime < 2.0f && lookSafety < 10.0f)
                 {
-                    fwdTime += Time.deltaTime;
+                    lookSafety += Time.deltaTime;
+                    float mouseDelta = Mathf.Abs(Input.GetAxis("Mouse X")) + Mathf.Abs(Input.GetAxis("Mouse Y"));
+                    if (mouseDelta > 0.02f) lookActiveTime += Time.deltaTime;
+                    yield return null;
                 }
-                yield return null;
-            }
 
-            // 3. Move Backward (S) - 1 second
-            objective = "Move Backward (S)";
-            float backTime = 0f;
-            float backSafety = 0f;
-            while (backTime < 1.0f && backSafety < 12.0f)
-            {
-                backSafety += Time.deltaTime;
-                if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow) || Input.GetAxisRaw("Vertical") < -0.2f)
-                {
-                    backTime += Time.deltaTime;
-                }
-                yield return null;
-            }
-
-            // 4. Move Left (A) - 1 second
-            objective = "Move Left (A)";
-            float leftTime = 0f;
-            float leftSafety = 0f;
-            while (leftTime < 1.0f && leftSafety < 12.0f)
-            {
-                leftSafety += Time.deltaTime;
-                if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) || Input.GetAxisRaw("Horizontal") < -0.2f)
-                {
-                    leftTime += Time.deltaTime;
-                }
-                yield return null;
-            }
-
-            // 5. Move Right (D) - 1 second
-            objective = "Move Right (D)";
-            float rightTime = 0f;
-            float rightSafety = 0f;
-            while (rightTime < 1.0f && rightSafety < 12.0f)
-            {
-                rightSafety += Time.deltaTime;
-                if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) || Input.GetAxisRaw("Horizontal") > 0.2f)
-                {
-                    rightTime += Time.deltaTime;
-                }
-                yield return null;
+                if (explorer != null) explorer.MovementLocked = false;
             }
 
             hasMovedAround = true;
-
-            // 6. Now transition to the phone call task
             objective = "Answer Brother's call at the bedroom mirror table";
             yield return new WaitUntil(() => currentScene != GameScene.Scene02_WakingUpAndPhone);
         }
@@ -219,56 +630,65 @@ namespace ThatNight.ChapterOne
             var cam = MainCam;
             if (!cam) yield break;
 
-            Vector3 pillowPos = new Vector3(-9.79f, 24.55f, 25.05f);
-            Quaternion pillowRot = Quaternion.Euler(-6f, 138f, 0f);
-
-            // 1. Sitting up on mattress, looking forward across bedroom (1.4s)
-            Vector3 sitPos = new Vector3(-9.15f, 24.85f, 24.75f);
-            Quaternion sitRot = Quaternion.Euler(15f, 105f, 0f);
-
-            float dur1 = 1.4f;
-            for (float t = 0; t < dur1; t += Time.deltaTime)
+            // Lock ForestExploration camera override so rig never snaps camera back during rise!
+            if (explorer != null) explorer.CinematicOverride = true;
+            try
             {
-                float smooth = Mathf.SmoothStep(0f, 1f, t / dur1);
-                Vector3 p = Vector3.Lerp(pillowPos, sitPos, smooth);
-                Quaternion r = Quaternion.Slerp(pillowRot, sitRot, smooth);
-                cam.transform.SetPositionAndRotation(p, r);
-                yield return null;
+                Vector3 pillowPos = new Vector3(-9.79f, 24.55f, 25.05f);
+                Quaternion pillowRot = Quaternion.Euler(-6f, 138f, 0f);
+
+                // 1. Sitting up on mattress, looking forward across bedroom (1.4s)
+                Vector3 sitPos = new Vector3(-9.15f, 24.85f, 24.75f);
+                Quaternion sitRot = Quaternion.Euler(15f, 105f, 0f);
+
+                float dur1 = 1.4f;
+                for (float t = 0; t < dur1; t += Time.deltaTime)
+                {
+                    float smooth = Mathf.SmoothStep(0f, 1f, t / dur1);
+                    Vector3 p = Vector3.Lerp(pillowPos, sitPos, smooth);
+                    Quaternion r = Quaternion.Slerp(pillowRot, sitRot, smooth);
+                    cam.transform.SetPositionAndRotation(p, r);
+                    yield return null;
+                }
+
+                yield return new WaitForSeconds(0.15f);
+
+                // 2. Turning to the edge of the bed toward the floor (1.3s)
+                Vector3 edgePos = new Vector3(-8.20f, 24.95f, 24.45f);
+                Quaternion edgeRot = Quaternion.Euler(12f, 82f, 0f);
+
+                float dur2 = 1.3f;
+                for (float t = 0; t < dur2; t += Time.deltaTime)
+                {
+                    float smooth = Mathf.SmoothStep(0f, 1f, t / dur2);
+                    Vector3 p = Vector3.Lerp(sitPos, edgePos, smooth);
+                    Quaternion r = Quaternion.Slerp(sitRot, edgeRot, smooth);
+                    cam.transform.SetPositionAndRotation(p, r);
+                    yield return null;
+                }
+
+                yield return new WaitForSeconds(0.15f);
+
+                // 3. Standing up onto the floorboards facing the dressing table (1.5s)
+                Vector3 standPos = new Vector3(-7.40f, 25.32f, 24.20f);
+                Quaternion standRot = Quaternion.Euler(4f, 82f, 0f);
+
+                float dur3 = 1.5f;
+                for (float t = 0; t < dur3; t += Time.deltaTime)
+                {
+                    float smooth = Mathf.SmoothStep(0f, 1f, t / dur3);
+                    Vector3 p = Vector3.Lerp(edgePos, standPos, smooth);
+                    Quaternion r = Quaternion.Slerp(edgeRot, standRot, smooth);
+                    cam.transform.SetPositionAndRotation(p, r);
+                    yield return null;
+                }
+
+                TeleportPlayer(standPos, standRot);
             }
-
-            yield return new WaitForSeconds(0.15f);
-
-            // 2. Turning to the edge of the bed toward the floor (1.3s)
-            Vector3 edgePos = new Vector3(-8.20f, 24.95f, 24.45f);
-            Quaternion edgeRot = Quaternion.Euler(12f, 82f, 0f);
-
-            float dur2 = 1.3f;
-            for (float t = 0; t < dur2; t += Time.deltaTime)
+            finally
             {
-                float smooth = Mathf.SmoothStep(0f, 1f, t / dur2);
-                Vector3 p = Vector3.Lerp(sitPos, edgePos, smooth);
-                Quaternion r = Quaternion.Slerp(sitRot, edgeRot, smooth);
-                cam.transform.SetPositionAndRotation(p, r);
-                yield return null;
+                if (explorer != null) explorer.CinematicOverride = false;
             }
-
-            yield return new WaitForSeconds(0.15f);
-
-            // 3. Standing up onto the floorboards facing the dressing table (1.5s)
-            Vector3 standPos = new Vector3(-7.40f, 25.32f, 24.20f);
-            Quaternion standRot = Quaternion.Euler(4f, 82f, 0f);
-
-            float dur3 = 1.5f;
-            for (float t = 0; t < dur3; t += Time.deltaTime)
-            {
-                float smooth = Mathf.SmoothStep(0f, 1f, t / dur3);
-                Vector3 p = Vector3.Lerp(edgePos, standPos, smooth);
-                Quaternion r = Quaternion.Slerp(edgeRot, standRot, smooth);
-                cam.transform.SetPositionAndRotation(p, r);
-                yield return null;
-            }
-
-            TeleportPlayer(standPos, standRot);
         }
 
         // ================================================================
@@ -297,8 +717,7 @@ namespace ThatNight.ChapterOne
             objective = "Open the bedroom door and meet Mother";
 
             // A door opened during Mother's call must not strand the objective.
-            foreach (var door in FindObjectsByType<HingedOpening>(FindObjectsSortMode.None))
-                if (door.triggerDirectorOnOpen && door.isOpen) { OnBedroomDoorOpened(); break; }
+            if (bridalDoor && bridalDoor.isOpen) OnBedroomDoorOpened();
         }
 
         // Called by HingedOpening when bridal bedroom door is pushed open
@@ -321,12 +740,7 @@ namespace ThatNight.ChapterOne
             if (ambience) ambience.SetScene(AmbienceScene.Morning);
 
             // Wait until player approaches the open bedroom door
-            var doors = FindObjectsByType<HingedOpening>(FindObjectsSortMode.None);
-            HingedOpening door = null;
-            foreach (var d in doors)
-            {
-                if (d.triggerDirectorOnOpen) { door = d; break; }
-            }
+            HingedOpening door = bridalDoor;
             Vector3 doorPos = door ? door.transform.position : new Vector3(-7.22f, 23.70f, 21.08f);
 
             bool autoTriggered = false;
@@ -378,7 +792,8 @@ namespace ThatNight.ChapterOne
                 Vector3 lookTarget = mother.head ? mother.head.position : (mother.transform.position + Vector3.up * 1.55f);
                 Quaternion targetR = Quaternion.LookRotation((lookTarget - targetP).normalized);
 
-                // Smooth cinematic walk towards Mother (2.0s)
+                // Smooth cinematic walk towards Mother (2.0s) with CinematicOverride so rig never fights camera
+                if (explorer != null) explorer.CinematicOverride = true;
                 float dur = 2.0f;
                 for (float t = 0; t < dur; t += Time.deltaTime)
                 {
@@ -387,6 +802,7 @@ namespace ThatNight.ChapterOne
                     cam.transform.rotation = Quaternion.Slerp(startR, targetR, smooth);
                     yield return null;
                 }
+                if (explorer != null) explorer.CinematicOverride = false;
                 TeleportPlayer(targetP, targetR);
 
                 // Enable glance left and right during dialogue so player can look at Mother and surroundings
@@ -431,12 +847,7 @@ namespace ThatNight.ChapterOne
 
         IEnumerator WaitForReturnToBedroom()
         {
-            var doors = FindObjectsByType<HingedOpening>(FindObjectsSortMode.None);
-            HingedOpening door = null;
-            foreach (var d in doors)
-            {
-                if (d.triggerDirectorOnOpen) { door = d; break; }
-            }
+            HingedOpening door = bridalDoor;
             Vector3 doorway = new Vector3(-6.75f, 25.24f, 21.10f);
 
             bool entered = false;
@@ -499,16 +910,9 @@ namespace ThatNight.ChapterOne
             objective = "Preparing bridal makeup with Mother";
             LockPlayer();
 
-            GameObject dressingTable = null;
-            foreach (var go in GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
-            {
-                if (go.name == "Bridal dressing table mirror and jewelry casket" && go.transform.position.x < 0)
-                {
-                    dressingTable = go;
-                    break;
-                }
-            }
-            if (dressingTable == null) dressingTable = GameObject.Find("Bridal dressing table mirror and jewelry casket");
+            GameObject dressingTable = preparationStation ? preparationStation.gameObject
+                : (MakeupMirrorStation.Instance ? MakeupMirrorStation.Instance.gameObject
+                : GameObject.Find("Bridal dressing table mirror and jewelry casket"));
             var cam = MainCam;
 
             // Ensure dressing chair exists in front of the mirror table

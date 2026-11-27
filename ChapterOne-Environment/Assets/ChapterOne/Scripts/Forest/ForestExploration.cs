@@ -16,9 +16,17 @@ namespace ThatNight.ChapterOne
         public bool LookClamped { get; set; }
         public float ClampCenterYaw { get; set; }
         public float ClampYawRange { get; set; } = 40f;
+        public bool RestrictToCompound { get; set; } = true;
+        public float WalkSpeedMultiplier { get; set; } = 1.0f;
+        public bool FlashlightUnlocked { get; set; } = true;
+        public bool CinematicOverride { get; set; }
         public CharacterController Body => body;
         public bool IsSeated { get; set; }
         public string Location { get; private set; } = "Forest edge";
+        Vector2[] trailWaypoints;
+        float trailHalfWidth = 22f;
+        float trailMaxDistance = float.PositiveInfinity;
+        float trailTotalLength;
         CharacterController body;
         Transform rig;
         EnvironmentCamera inspection;
@@ -56,13 +64,14 @@ namespace ThatNight.ChapterOne
 
         void Update()
         {
-            bool input=!GameplayReview.IsRunning;
-            if (input && !ControlsLocked && Input.GetKeyDown(KeyCode.X)) SetWalking(!Walking);
-            if (input && !ControlsLocked && Input.GetKeyDown(KeyCode.F8)) Visit(viewpoint++);
-            if (input && !ControlsLocked && Input.GetKeyDown(KeyCode.L) && flashlight) flashlight.enabled = !flashlight.enabled;
-            if (input && !ControlsLocked && Input.GetKeyDown(KeyCode.K) && inspection.lighting)
+            bool storyActive = ChapterOneDirector.Instance != null;
+            bool input = !GameplayReview.IsRunning;
+            if (input && !storyActive && !ControlsLocked && Input.GetKeyDown(KeyCode.X)) SetWalking(!Walking);
+            if (input && !storyActive && !ControlsLocked && Input.GetKeyDown(KeyCode.F8)) Visit(viewpoint++);
+            if (input && !storyActive && !ControlsLocked && FlashlightUnlocked && Input.GetKeyDown(KeyCode.L) && flashlight) flashlight.enabled = !flashlight.enabled;
+            if (input && !storyActive && !ControlsLocked && Input.GetKeyDown(KeyCode.K) && inspection.lighting)
                 inspection.lighting.ApplyStage(AtmosphereStage.NightHorror);
-            if (Walking)
+            if (Walking && !CinematicOverride)
             {
                 if (Input.GetKeyDown(KeyCode.Escape)) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
                 if ((Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) || Input.anyKeyDown) && !Input.GetKeyDown(KeyCode.Escape))
@@ -114,11 +123,13 @@ namespace ThatNight.ChapterOne
                 }
                 if (body.isGrounded && vertical < 0) vertical = -2;
                 vertical = Mathf.Max(-30, vertical - 22 * Time.deltaTime);
-                // No sprint in this game: steady, deliberate atmospheric walk speed
-                const float moveSpeed = 1.65f;
+                // Steady atmospheric walk speed (1.65 indoors/compound, scaled smoothly in open forest)
+                float moveSpeed = 1.65f * Mathf.Max(0.5f, WalkSpeedMultiplier);
                 body.Move((move * moveSpeed + Vector3.up * vertical) * Time.deltaTime);
 
-                    // Restrict player to Wedding & House compound only in Chapter One (no forest access yet)
+                if (RestrictToCompound)
+                {
+                    // Restrict player to Wedding & House compound only in Chapter One morning/wedding phases
                     const float CompoundMinX = -23.0f;
                     const float CompoundMaxX = 23.0f;
                     const float CompoundMinZ = -19.0f;
@@ -127,6 +138,21 @@ namespace ThatNight.ChapterOne
                     clampedPos.x = Mathf.Clamp(clampedPos.x, CompoundMinX, CompoundMaxX);
                     clampedPos.z = Mathf.Clamp(clampedPos.z, CompoundMinZ, CompoundMaxZ);
                     rig.position = clampedPos;
+                }
+                else if (trailWaypoints != null && trailWaypoints.Length >= 2)
+                {
+                    // Keep the Bride strictly inside the winding left-right forest trail corridor
+                    // so she follows the crying voice to the Big Tree and can NEVER return to the wedding house.
+                    Vector2 pos2 = new(rig.position.x, rig.position.z);
+                    Vector2 clamped2 = ClampToTrailCorridor(pos2, out _);
+                    if ((clamped2 - pos2).sqrMagnitude > 0.0001f)
+                    {
+                        Vector3 p = rig.position;
+                        p.x = clamped2.x;
+                        p.z = clamped2.y;
+                        rig.position = p;
+                    }
+                }
 
                 // Organic head bobbing tied to movement
                 float walkMag = Mathf.Clamp01(move.magnitude);
@@ -185,6 +211,101 @@ namespace ThatNight.ChapterOne
         public Vector3 FeetPosition => rig ? rig.position : (transform.position - Vector3.up * 1.54f);
         public float CurrentYaw => yaw;
         public float CurrentPitch => pitch;
+        public float TrailTotalLength => trailTotalLength;
+
+        public void SetTrailCorridor(Vector2[] waypoints, float halfWidth = 24f, float maxDistance = float.PositiveInfinity)
+        {
+            trailWaypoints = waypoints;
+            trailHalfWidth = Mathf.Max(6f, halfWidth);
+            trailMaxDistance = maxDistance;
+            trailTotalLength = 0f;
+            if (waypoints != null)
+            {
+                for (int i = 1; i < waypoints.Length; i++)
+                    trailTotalLength += Vector2.Distance(waypoints[i - 1], waypoints[i]);
+            }
+        }
+
+        public void ClearTrailCorridor()
+        {
+            trailWaypoints = null;
+            trailMaxDistance = float.PositiveInfinity;
+            trailTotalLength = 0f;
+        }
+
+        public float GetTrailProgress(Vector2 pos)
+        {
+            ClampToTrailCorridor(pos, out float progress);
+            return progress;
+        }
+
+        public Vector2 SampleTrailAtDistance(float dist)
+        {
+            if (trailWaypoints == null || trailWaypoints.Length == 0) return Vector2.zero;
+            if (trailWaypoints.Length == 1 || dist <= 0f) return trailWaypoints[0];
+
+            float accum = 0f;
+            for (int i = 1; i < trailWaypoints.Length; i++)
+            {
+                float segLen = Vector2.Distance(trailWaypoints[i - 1], trailWaypoints[i]);
+                if (accum + segLen >= dist && segLen > 0.001f)
+                {
+                    float u = Mathf.Clamp01((dist - accum) / segLen);
+                    return Vector2.Lerp(trailWaypoints[i - 1], trailWaypoints[i], u);
+                }
+                accum += segLen;
+            }
+            return trailWaypoints[trailWaypoints.Length - 1];
+        }
+
+        Vector2 ClampToTrailCorridor(Vector2 p, out float bestProgress)
+        {
+            bestProgress = 0f;
+            if (trailWaypoints == null || trailWaypoints.Length < 2) return p;
+
+            float bestDistSq = float.PositiveInfinity;
+            Vector2 bestClosest = trailWaypoints[0];
+            float accum = 0f;
+
+            for (int i = 1; i < trailWaypoints.Length; i++)
+            {
+                Vector2 a = trailWaypoints[i - 1];
+                Vector2 b = trailWaypoints[i];
+                Vector2 ab = b - a;
+                float segLen = ab.magnitude;
+                if (segLen < 0.001f) continue;
+
+                float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / (segLen * segLen));
+                float segProg = accum + t * segLen;
+
+                if (segProg > trailMaxDistance)
+                {
+                    float maxT = Mathf.Clamp01((trailMaxDistance - accum) / segLen);
+                    t = maxT;
+                    segProg = accum + t * segLen;
+                }
+
+                Vector2 proj = a + ab * t;
+                float dSq = (p - proj).sqrMagnitude;
+                if (dSq < bestDistSq)
+                {
+                    bestDistSq = dSq;
+                    bestClosest = proj;
+                    bestProgress = segProg;
+                }
+
+                accum += segLen;
+                if (accum >= trailMaxDistance) break;
+            }
+
+            Vector2 offset = p - bestClosest;
+            float dist = offset.magnitude;
+            if (dist > trailHalfWidth && dist > 0.0001f)
+            {
+                return bestClosest + offset * (trailHalfWidth / dist);
+            }
+            return p;
+        }
 
         public void SetLookDirection(float newYaw, float newPitch)
         {

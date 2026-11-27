@@ -56,8 +56,14 @@ namespace ThatNight.ChapterOne
         [Header("3D LCD Screen")]
         GameObject lcdRoot;
         Material lcdMat;
-        TextMesh lcdHeader;
         TextMesh lcdBody;
+        Material[] cachedScreenMats;
+        float lastGlowIntensity = -1f;
+        PhoneState lastLcdState = (PhoneState)(-1);
+        int lastLcdSec = -1;
+        bool lcdInitialized;
+        GUIStyle cachedThoughtStyle;
+        GUIStyle cachedPromptStyle;
 
         void Awake()
         {
@@ -129,6 +135,7 @@ namespace ThatNight.ChapterOne
                     }
                 }
             }
+            if (screenRenderer) cachedScreenMats = screenRenderer.materials;
             SetScreenGlow(0f);
         }
 
@@ -216,7 +223,6 @@ namespace ThatNight.ChapterOne
                         else DestroyImmediate(child.gameObject);
                     }
                 }
-                lcdHeader = null;
             }
 
             if (!lcdBody && lcdRoot != null)
@@ -235,15 +241,23 @@ namespace ThatNight.ChapterOne
                 lcdBody.transform.localPosition = Vector3.zero;
                 lcdBody.transform.localScale = Vector3.one * 0.00075f;
             }
+            lcdInitialized = true;
         }
 
         void Update3DLcdScreen()
         {
-            EnsureLcdScreen();
+            if (!lcdInitialized || lcdBody == null) EnsureLcdScreen();
             if (lcdBody == null) return;
 
-            int min = (int)(callTimer / 60);
-            int sec = (int)(callTimer % 60);
+            int totalSec = (int)callTimer;
+            if (currentState == lastLcdState && (currentState != PhoneState.InCall || totalSec == lastLcdSec))
+                return;
+
+            lastLcdState = currentState;
+            lastLcdSec = totalSec;
+
+            int min = totalSec / 60;
+            int sec = totalSec % 60;
             string timeStr = $"{min:00}:{sec:00}";
 
             if (currentState == PhoneState.Ringing || currentState == PhoneState.InspectingCall)
@@ -263,7 +277,7 @@ namespace ThatNight.ChapterOne
             }
             else
             {
-                if (lcdBody) lcdBody.gameObject.SetActive(false);
+                lcdBody.gameObject.SetActive(false);
             }
         }
 
@@ -362,7 +376,6 @@ namespace ThatNight.ChapterOne
                     if (lcdMat != null)
                     {
                         lcdMat.color = new Color(0.42f, 0.75f, 0.38f) * (0.85f + lightIntensity * 0.35f);
-                        if (lcdHeader) lcdHeader.color = new Color(0.08f, 0.16f, 0.06f);
                         if (lcdBody) lcdBody.color = new Color(0.08f, 0.16f, 0.06f);
                     }
                 }
@@ -378,7 +391,6 @@ namespace ThatNight.ChapterOne
                     if (lcdMat != null)
                     {
                         lcdMat.color = new Color(0.18f, 0.28f, 0.15f);
-                        if (lcdHeader) lcdHeader.color = new Color(0.12f, 0.20f, 0.10f, 0.4f);
                         if (lcdBody) lcdBody.color = new Color(0.12f, 0.20f, 0.10f, 0.4f);
                     }
                 }
@@ -395,7 +407,6 @@ namespace ThatNight.ChapterOne
                 if (lcdMat != null)
                 {
                     lcdMat.color = new Color(0.18f, 0.28f, 0.15f);
-                    if (lcdHeader) lcdHeader.color = new Color(0.12f, 0.20f, 0.10f, 0.4f);
                     if (lcdBody) lcdBody.color = new Color(0.12f, 0.20f, 0.10f, 0.4f);
                 }
             }
@@ -455,21 +466,24 @@ namespace ThatNight.ChapterOne
         void SetScreenGlow(float intensity)
         {
             if (!screenRenderer) return;
-            var mats = screenRenderer.materials;
+            if (Mathf.Abs(intensity - lastGlowIntensity) < 0.015f) return;
+            lastGlowIntensity = intensity;
+
+            if (cachedScreenMats == null) cachedScreenMats = screenRenderer.materials;
             Color glow = new Color(0.35f, 0.95f, 0.35f) * intensity;
-            if (mats.Length > 4 && mats[4] != null)
+            bool emit = intensity > 0.01f;
+            if (cachedScreenMats.Length > 4 && cachedScreenMats[4] != null)
             {
-                mats[4].SetColor("_EmissionColor", glow);
-                if (intensity > 0.01f) mats[4].EnableKeyword("_EMISSION");
-                else mats[4].DisableKeyword("_EMISSION");
+                cachedScreenMats[4].SetColor("_EmissionColor", glow);
+                if (emit) cachedScreenMats[4].EnableKeyword("_EMISSION");
+                else cachedScreenMats[4].DisableKeyword("_EMISSION");
             }
-            if (mats.Length > 8 && mats[8] != null)
+            if (cachedScreenMats.Length > 8 && cachedScreenMats[8] != null)
             {
-                mats[8].SetColor("_EmissionColor", glow * 0.4f);
-                if (intensity > 0.01f) mats[8].EnableKeyword("_EMISSION");
-                else mats[8].DisableKeyword("_EMISSION");
+                cachedScreenMats[8].SetColor("_EmissionColor", glow * 0.4f);
+                if (emit) cachedScreenMats[8].EnableKeyword("_EMISSION");
+                else cachedScreenMats[8].DisableKeyword("_EMISSION");
             }
-            screenRenderer.materials = mats;
         }
 
         // ── Step 1: Pick up phone to inspect incoming call ─────────────────
@@ -650,70 +664,66 @@ namespace ThatNight.ChapterOne
             }
         }
 
-        // ── Nokia LCD HUD & Thought Subtitle ──────────────────────────────
+        // ── Nokia LCD HUD & Thought Subtitle (Cached styles — zero per-frame GC) ──
         void OnGUI()
         {
+            if (string.IsNullOrEmpty(thoughtText) && !isHeld) return;
+
+            if (cachedThoughtStyle == null)
+            {
+                cachedThoughtStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 17,
+                    fontStyle = FontStyle.Italic,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                cachedThoughtStyle.normal.textColor = new Color(0.95f, 0.90f, 0.75f);
+
+                cachedPromptStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 15,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+            }
+
             float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
             var prev = GUI.matrix;
             GUI.matrix = Matrix4x4.Scale(Vector3.one * scale);
 
             float sw = Screen.width / scale, sh = Screen.height / scale;
 
-            // Render thought monologue subtitle at bottom center
             if (!string.IsNullOrEmpty(thoughtText))
             {
-                float tw = 440, th = 40;
+                const float tw = 440f, th = 40f;
                 float tx = (sw - tw) * 0.5f, ty = sh - 145f;
                 GUI.color = new Color(0.04f, 0.05f, 0.04f, 0.88f);
                 GUI.DrawTexture(new Rect(tx - 12, ty - 6, tw + 24, th + 12), Texture2D.whiteTexture);
-
-                var thoughtStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 17,
-                    fontStyle = FontStyle.Italic,
-                    alignment = TextAnchor.MiddleCenter
-                };
-                thoughtStyle.normal.textColor = new Color(0.95f, 0.90f, 0.75f);
                 GUI.color = Color.white;
-                GUI.Label(new Rect(tx, ty, tw, th), "“" + thoughtText + "”", thoughtStyle);
+                GUI.Label(new Rect(tx, ty, tw, th), "“" + thoughtText + "”", cachedThoughtStyle);
             }
 
-            // Clean mouse action prompt pill at bottom center (no edge box; interface is 100% on the 3D phone screen)
             if (isHeld)
             {
                 if (currentState == PhoneState.InspectingCall)
                 {
-                    float pillW = 420f, pillH = 34f;
+                    const float pillW = 420f, pillH = 34f;
                     float px = (sw - pillW) * 0.5f, py = sh - 75f;
                     GUI.color = new Color(0.04f, 0.05f, 0.04f, 0.85f);
                     GUI.DrawTexture(new Rect(px - 10, py - 4, pillW + 20, pillH + 8), Texture2D.whiteTexture);
                     GUI.color = Color.white;
-
-                    var promptStyle = new GUIStyle(GUI.skin.label)
-                    {
-                        fontSize = 15,
-                        fontStyle = FontStyle.Bold,
-                        alignment = TextAnchor.MiddleCenter
-                    };
-                    promptStyle.normal.textColor = new Color(0.96f, 0.92f, 0.75f);
-                    GUI.Label(new Rect(px, py, pillW, pillH), "[Left Click] Answer Call   •   [Right Click] Put Back", promptStyle);
+                    cachedPromptStyle.normal.textColor = new Color(0.96f, 0.92f, 0.75f);
+                    GUI.Label(new Rect(px, py, pillW, pillH), "[Left Click] Answer Call   •   [Right Click] Put Back", cachedPromptStyle);
                 }
                 else if (currentState == PhoneState.Ended)
                 {
-                    float pillW = 320f, pillH = 34f;
+                    const float pillW = 320f, pillH = 34f;
                     float px = (sw - pillW) * 0.5f, py = sh - 75f;
                     GUI.color = new Color(0.05f, 0.04f, 0.04f, 0.85f);
                     GUI.DrawTexture(new Rect(px - 10, py - 4, pillW + 20, pillH + 8), Texture2D.whiteTexture);
                     GUI.color = Color.white;
-
-                    var promptStyle = new GUIStyle(GUI.skin.label)
-                    {
-                        fontSize = 15,
-                        fontStyle = FontStyle.Bold,
-                        alignment = TextAnchor.MiddleCenter
-                    };
-                    promptStyle.normal.textColor = new Color(1f, 0.90f, 0.70f);
-                    GUI.Label(new Rect(px, py, pillW, pillH), "[Right Click] Put back on table", promptStyle);
+                    cachedPromptStyle.normal.textColor = new Color(1f, 0.90f, 0.70f);
+                    GUI.Label(new Rect(px, py, pillW, pillH), "[Right Click] Put back on table", cachedPromptStyle);
                 }
             }
 

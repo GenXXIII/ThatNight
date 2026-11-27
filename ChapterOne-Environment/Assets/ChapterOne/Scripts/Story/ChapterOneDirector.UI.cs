@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThatNight.ChapterOne
@@ -8,11 +6,118 @@ namespace ThatNight.ChapterOne
     public sealed partial class ChapterOneDirector
     {
         static Texture2D leftVignetteTex;
+        static Texture2D _markerDiamondTex;
+
+        // Cached GUIStyles (initialized once — zero per-frame OnGUI GC allocations!)
+        GUIStyle uiButtonStyle;
+        GUIStyle uiKhmerHeadingStyle;
+        GUIStyle uiTitleShadowStyle;
+        GUIStyle uiTitleStyle;
+        GUIStyle uiChapterStyle;
+        GUIStyle uiSettingStyle;
+        GUIStyle uiObjectiveStyle;
+        GUIStyle uiHintStyle;
+        GUIStyle uiTaglineStyle;
+        GUIStyle uiCardTitleStyle;
+        GUIStyle uiCardChapterStyle;
+
+        void EnsureGuiStyles()
+        {
+            if (uiButtonStyle != null) return;
+
+            uiButtonStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 15,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            uiKhmerHeadingStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 17,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft
+            };
+            uiKhmerHeadingStyle.normal.textColor = new Color(0.88f, 0.74f, 0.38f, 0.95f);
+
+            uiTitleShadowStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 48,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft
+            };
+            uiTitleShadowStyle.normal.textColor = new Color(0.38f, 0.05f, 0.05f, 0.85f);
+
+            uiTitleStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 48,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft
+            };
+            uiTitleStyle.normal.textColor = new Color(0.98f, 0.96f, 0.92f, 1f);
+
+            uiChapterStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft
+            };
+            uiChapterStyle.normal.textColor = new Color(0.82f, 0.78f, 0.70f, 0.92f);
+
+            uiSettingStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Normal,
+                alignment = TextAnchor.UpperLeft
+            };
+            uiSettingStyle.normal.textColor = new Color(0.68f, 0.60f, 0.48f, 0.80f);
+
+            uiObjectiveStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 18,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft
+            };
+            uiObjectiveStyle.normal.textColor = new Color(1f, 0.92f, 0.45f, 1f);
+
+            uiHintStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Italic,
+                alignment = TextAnchor.UpperLeft
+            };
+            uiHintStyle.normal.textColor = new Color(0.95f, 0.80f, 0.35f, 0.90f);
+
+            uiTaglineStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 18,
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Normal
+            };
+            uiTaglineStyle.normal.textColor = new Color(0.72f, 0.22f, 0.22f, 0.95f);
+
+            uiCardTitleStyle = new GUIStyle(uiTaglineStyle)
+            {
+                fontSize = 56,
+                fontStyle = FontStyle.Bold
+            };
+            uiCardTitleStyle.normal.textColor = new Color(0.95f, 0.94f, 0.90f, 1f);
+
+            uiCardChapterStyle = new GUIStyle(uiTaglineStyle);
+            uiCardChapterStyle.normal.textColor = new Color(0.85f, 0.75f, 0.55f, 0.85f);
+        }
+
+        static bool ContainsCI(string source, string value)
+        {
+            return !string.IsNullOrEmpty(source) && source.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         static Texture2D GetLeftVignetteTex()
         {
             if (leftVignetteTex) return leftVignetteTex;
-            leftVignetteTex = new Texture2D(128, 1, TextureFormat.RGBA32, false);
-            leftVignetteTex.wrapMode = TextureWrapMode.Clamp;
+            leftVignetteTex = new Texture2D(128, 1, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp
+            };
             Color[] cols = new Color[128];
             for (int i = 0; i < 128; i++)
             {
@@ -21,17 +126,15 @@ namespace ThatNight.ChapterOne
                 cols[i] = new Color(0.02f, 0.02f, 0.02f, alpha);
             }
             leftVignetteTex.SetPixels(cols);
-            leftVignetteTex.Apply();
+            leftVignetteTex.Apply(false, true);
             return leftVignetteTex;
         }
 
         bool DrawCustomMenuButton(Rect rect, string text, bool isHover)
         {
-            // Glass slate background
             GUI.color = isHover ? new Color(0.24f, 0.17f, 0.08f, 0.88f) : new Color(0.05f, 0.04f, 0.04f, 0.70f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
 
-            // 1px Gold border
             GUI.color = isHover ? new Color(0.96f, 0.84f, 0.44f, 0.95f) : new Color(0.68f, 0.54f, 0.28f, 0.45f);
             float bw = isHover ? 1.5f : 1.0f;
             GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, bw), Texture2D.whiteTexture);
@@ -39,10 +142,9 @@ namespace ThatNight.ChapterOne
             GUI.DrawTexture(new Rect(rect.x, rect.y, bw, rect.height), Texture2D.whiteTexture);
             GUI.DrawTexture(new Rect(rect.xMax - bw, rect.y, bw, rect.height), Texture2D.whiteTexture);
 
-            // Corner ornamental notches when hovered
             if (isHover)
             {
-                float c = 5f;
+                const float c = 5f;
                 GUI.color = new Color(1f, 0.90f, 0.55f, 1f);
                 GUI.DrawTexture(new Rect(rect.x - 2, rect.y - 2, c, 2), Texture2D.whiteTexture);
                 GUI.DrawTexture(new Rect(rect.x - 2, rect.y - 2, 2, c), Texture2D.whiteTexture);
@@ -55,22 +157,23 @@ namespace ThatNight.ChapterOne
             }
             GUI.color = Color.white;
 
-            // Text
-            var style = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 15,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            style.normal.textColor = isHover ? new Color(1f, 0.95f, 0.78f, 1f) : new Color(0.88f, 0.86f, 0.82f, 0.90f);
-            GUI.Label(rect, text, style);
+            uiButtonStyle.normal.textColor = isHover ? new Color(1f, 0.95f, 0.78f, 1f) : new Color(0.88f, 0.86f, 0.82f, 0.90f);
+            GUI.Label(rect, text, uiButtonStyle);
 
             return GUI.Button(rect, GUIContent.none, GUIStyle.none);
         }
 
         void OnGUI()
         {
+            EnsureGuiStyles();
             float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
+
+            if (shadowScareFlash > 0.005f)
+            {
+                GUI.color = new Color(0.06f, 0.01f, 0.01f, Mathf.Clamp01(shadowScareFlash) * 0.65f);
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = Color.white;
+            }
 
             if (fade > 0.005f)
             {
@@ -85,117 +188,51 @@ namespace ThatNight.ChapterOne
                 GUI.matrix = Matrix4x4.Scale(Vector3.one * scale);
                 float sw = Screen.width / scale, sh = Screen.height / scale;
 
-                // 1. Cinemascope widescreen letterbox bars top & bottom
                 float barH = sh * 0.055f;
                 GUI.color = new Color(0.02f, 0.02f, 0.02f, 0.96f);
                 GUI.DrawTexture(new Rect(0, 0, sw, barH), Texture2D.whiteTexture);
                 GUI.DrawTexture(new Rect(0, sh - barH, sw, barH), Texture2D.whiteTexture);
-                // Subtle gold accent along letterbox edges
                 GUI.color = new Color(0.68f, 0.54f, 0.28f, 0.35f);
                 GUI.DrawTexture(new Rect(0, barH - 1, sw, 1), Texture2D.whiteTexture);
                 GUI.DrawTexture(new Rect(0, sh - barH, sw, 1), Texture2D.whiteTexture);
                 GUI.color = Color.white;
 
-                // 2. Smooth cinematic gradient vignette on the left (seamless fade into 3D world!)
                 GUI.DrawTexture(new Rect(0, barH, 560, sh - barH * 2), GetLeftVignetteTex());
 
-                float leftX = 85;
+                const float leftX = 85f;
                 float topY = sh * 0.22f;
 
-                // 3. Khmer ornate heading in warm luminous gold
-                var khmerHeadingStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 17,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.UpperLeft
-                };
-                khmerHeadingStyle.normal.textColor = new Color(0.88f, 0.74f, 0.38f, 0.95f);
-                GUI.Label(new Rect(leftX, topY, 440, 26), "✦   យ  ប់  នោះ   ✦", khmerHeadingStyle);
+                GUI.Label(new Rect(leftX, topY, 440, 26), "✦   យ  ប់  នោះ   ✦", uiKhmerHeadingStyle);
+                GUI.Label(new Rect(leftX + 2, topY + 28, 440, 56), "THAT NIGHT", uiTitleShadowStyle);
+                GUI.Label(new Rect(leftX, topY + 26, 440, 56), "THAT NIGHT", uiTitleStyle);
+                GUI.Label(new Rect(leftX, topY + 84, 440, 22), "CHAPTER ONE: THE WEDDING · បុណ្យអាពាហ៍ពិពាហ៍", uiChapterStyle);
+                GUI.Label(new Rect(leftX, topY + 106, 440, 20), "Battambang Countryside, Cambodia — April 2006", uiSettingStyle);
 
-                // 4. Main title in monumental lettering with horror crimson shadow
-                var titleShadowStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 48,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.UpperLeft
-                };
-                titleShadowStyle.normal.textColor = new Color(0.38f, 0.05f, 0.05f, 0.85f);
-                GUI.Label(new Rect(leftX + 2, topY + 28, 440, 56), "THAT NIGHT", titleShadowStyle);
-
-                var titleStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 48,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.UpperLeft
-                };
-                titleStyle.normal.textColor = new Color(0.98f, 0.96f, 0.92f, 1f);
-                GUI.Label(new Rect(leftX, topY + 26, 440, 56), "THAT NIGHT", titleStyle);
-
-                // 5. Chapter name & setting
-                var chapterStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 13,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.UpperLeft
-                };
-                chapterStyle.normal.textColor = new Color(0.82f, 0.78f, 0.70f, 0.92f);
-                GUI.Label(new Rect(leftX, topY + 84, 440, 22), "CHAPTER ONE: THE WEDDING · បុណ្យអាពាហ៍ពិពាហ៍", chapterStyle);
-
-                var settingStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 12,
-                    fontStyle = FontStyle.Normal,
-                    alignment = TextAnchor.UpperLeft
-                };
-                settingStyle.normal.textColor = new Color(0.68f, 0.60f, 0.48f, 0.80f);
-                GUI.Label(new Rect(leftX, topY + 106, 440, 20), "Battambang Countryside, Cambodia — April 2006", settingStyle);
-
-                // Fine gold rule with diamond center
                 GUI.color = new Color(0.72f, 0.58f, 0.30f, 0.40f);
                 GUI.DrawTexture(new Rect(leftX, topY + 134, 340, 1), Texture2D.whiteTexture);
                 GUI.color = Color.white;
 
-                // 6. Interactive Custom Styled Buttons
-                float btnY = topY + 155;
-                float btnW = 320;
-                float btnH = 46;
-                float spacing = 58;
-
+                float btnY = topY + 155f;
+                const float btnW = 320f, btnH = 46f, spacing = 58f;
                 Vector2 mousePos = Event.current != null ? Event.current.mousePosition : Vector2.zero;
 
                 Rect rContinue = new Rect(leftX, btnY, btnW, btnH);
-                bool hoverContinue = rContinue.Contains(mousePos);
-                if (DrawCustomMenuButton(rContinue, "▶    CONTINUE", hoverContinue))
+                if (DrawCustomMenuButton(rContinue, "▶    CONTINUE", rContinue.Contains(mousePos)))
                 {
                     StartFromIntroMenu();
                 }
 
                 Rect rNewGame = new Rect(leftX, btnY + spacing, btnW, btnH);
-                bool hoverNewGame = rNewGame.Contains(mousePos);
-                if (DrawCustomMenuButton(rNewGame, "✦    NEW GAME", hoverNewGame))
+                if (DrawCustomMenuButton(rNewGame, "✦    NEW GAME", rNewGame.Contains(mousePos)))
                 {
                     StartFromIntroMenu();
                 }
 
                 Rect rQuit = new Rect(leftX, btnY + spacing * 2, btnW, btnH);
-                bool hoverQuit = rQuit.Contains(mousePos);
-                if (DrawCustomMenuButton(rQuit, "✕    QUIT", hoverQuit))
+                if (DrawCustomMenuButton(rQuit, "✕    QUIT", rQuit.Contains(mousePos)))
                 {
                     Application.Quit();
                 }
-
-                GUI.matrix = prev;
-            }
-
-            // On-screen skip hint during Opening flyby cinematic with Circular Progress Ring around Space icon
-            if (currentScene == GameScene.Scene01_Opening && !showIntroMenu && !menuTransitioning && fade < 0.85f)
-            {
-                var prev = GUI.matrix;
-                GUI.matrix = Matrix4x4.Scale(Vector3.one * scale);
-                float sw = Screen.width / scale, sh = Screen.height / scale;
-
-                float prog = Mathf.Clamp01(cinematicSpaceTimer / CinematicHoldToSkip);
-                CircleSkipUI.Draw(sw - 200f, sh - 52f, prog, "Hold Space to Skip");
 
                 GUI.matrix = prev;
             }
@@ -205,71 +242,21 @@ namespace ThatNight.ChapterOne
                 var prev = GUI.matrix;
                 GUI.matrix = Matrix4x4.Scale(Vector3.one * scale);
 
-                var style = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 18,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.UpperLeft
-                };
-                style.normal.textColor = new Color(1f, 0.92f, 0.45f, 1f); // Rich warm vivid gold weight
-
+                string labelText = "◆  " + objective;
                 GUI.color = new Color(0, 0, 0, 0.92f);
-                GUI.Label(new Rect(34, 30, 800, 32), "◆  " + objective, style);
-                GUI.Label(new Rect(33, 29, 800, 32), "◆  " + objective, style);
+                GUI.Label(new Rect(34, 30, 800, 32), labelText, uiObjectiveStyle);
+                GUI.Label(new Rect(33, 29, 800, 32), labelText, uiObjectiveStyle);
                 GUI.color = new Color(1f, 0.92f, 0.45f, 1f);
-                GUI.Label(new Rect(32, 28, 800, 32), "◆  " + objective, style);
+                GUI.Label(new Rect(32, 28, 800, 32), labelText, uiObjectiveStyle);
                 GUI.color = Color.white;
 
-                // First-time instruction hints shown cleanly under objective (no timers/counters displayed)
-                string firstTimeHint = null;
-                if (objective == "Look around")
-                {
-                    firstTimeHint = "Hint: Move Mouse to look around";
-                }
-                else if (objective.Contains("Move Forward") || objective.Contains("(W)"))
-                {
-                    firstTimeHint = "Hint: Press and hold [W] to walk forward";
-                }
-                else if (objective.Contains("Move Backward") || objective.Contains("(S)"))
-                {
-                    firstTimeHint = "Hint: Press and hold [S] to walk backward";
-                }
-                else if (objective.Contains("Move Left") || objective.Contains("(A)"))
-                {
-                    firstTimeHint = "Hint: Press and hold [A] to step left";
-                }
-                else if (objective.Contains("Move Right") || objective.Contains("(D)"))
-                {
-                    firstTimeHint = "Hint: Press and hold [D] to step right";
-                }
-                else if (objective.Contains("Move around") || objective.Contains("W, A, S, D"))
-                {
-                    firstTimeHint = "Hint: Press [W, A, S, D] to walk";
-                }
-                else if (!hasPickedUpPhoneOnce && (objective.ToLower().Contains("phone") || objective.ToLower().Contains("call")))
-                {
-                    firstTimeHint = "Hint: [Left Click] Pick up Phone at mirror table";
-                }
-                else if (!hasOpenedDoorOnce && objective.ToLower().Contains("door"))
-                {
-                    firstTimeHint = "Hint: Hold [Left Click] to Open Bedroom Door";
-                }
-
+                string firstTimeHint = GetObjectiveHint();
                 if (!string.IsNullOrEmpty(firstTimeHint))
                 {
-                    var hintStyle = new GUIStyle(GUI.skin.label)
-                    {
-                        fontSize = 13,
-                        fontStyle = FontStyle.Italic,
-                        alignment = TextAnchor.UpperLeft
-                    };
-                    hintStyle.normal.textColor = new Color(0.95f, 0.80f, 0.35f, 0.90f);
-                    GUI.Label(new Rect(34, 58, 600, 24), firstTimeHint, hintStyle);
+                    GUI.Label(new Rect(34, 58, 600, 24), firstTimeHint, uiHintStyle);
                 }
 
                 GUI.matrix = prev;
-
-                // Draw floating diamond sign / marker above active task target in world
                 DrawActiveTaskMarker();
             }
 
@@ -282,64 +269,57 @@ namespace ThatNight.ChapterOne
                 GUI.matrix = Matrix4x4.Scale(Vector3.one * scale);
                 float sw = Screen.width / scale, sh = Screen.height / scale;
 
-                var taglineStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 18,
-                    alignment = TextAnchor.MiddleCenter,
-                    fontStyle = FontStyle.Normal
-                };
-                taglineStyle.normal.textColor = new Color(0.72f, 0.22f, 0.22f, 0.95f);
-
-                var titleStyle = new GUIStyle(taglineStyle)
-                {
-                    fontSize = 56,
-                    fontStyle = FontStyle.Bold
-                };
-                titleStyle.normal.textColor = new Color(0.95f, 0.94f, 0.90f, 1f);
-
-                var chapterStyle = new GUIStyle(taglineStyle);
-                chapterStyle.normal.textColor = new Color(0.85f, 0.75f, 0.55f, 0.85f);
-
                 GUI.color = Color.white;
-                GUI.Label(new Rect(0, sh * 0.34f, sw, 30), "A CAMBODIAN SUPERNATURAL HORROR GAME", taglineStyle);
-                GUI.Label(new Rect(0, sh * 0.43f, sw, 80), "THAT NIGHT", titleStyle);
-                GUI.Label(new Rect(0, sh * 0.56f, sw, 30), "CHAPTER ONE — THE WEDDING", chapterStyle);
+                GUI.Label(new Rect(0, sh * 0.34f, sw, 30), "A CAMBODIAN SUPERNATURAL HORROR GAME", uiTaglineStyle);
+                GUI.Label(new Rect(0, sh * 0.43f, sw, 80), "THAT NIGHT", uiCardTitleStyle);
+                GUI.Label(new Rect(0, sh * 0.56f, sw, 30), "CHAPTER ONE — THE WEDDING", uiCardChapterStyle);
 
                 GUI.matrix = prev;
             }
         }
 
-        static Texture2D _markerDiamondTex;
+        string GetObjectiveHint()
+        {
+            if (objective == "Look around") return "Hint: Move Mouse to look around";
+            if (!hasPickedUpFlashlightOnce && ContainsCI(objective, "flashlight"))
+                return "Hint: Look down and [Left Click] to pick up the Flashlight";
+            if (ContainsCI(objective, "crying"))
+                return "Hint: Use [W, A, S, D] to walk and [F] to toggle Flashlight";
+            if (!hasPickedUpPhoneOnce && (ContainsCI(objective, "phone") || ContainsCI(objective, "call")))
+                return "Hint: [Left Click] Pick up Phone at mirror table";
+            if (!hasOpenedDoorOnce && ContainsCI(objective, "door"))
+                return "Hint: Hold [Left Click] to Open Bedroom Door";
+            return null;
+        }
 
-        Texture2D GetMarkerDiamondTex()
+        static Texture2D GetMarkerDiamondTex()
         {
             if (_markerDiamondTex != null) return _markerDiamondTex;
-            int sz = 32;
-            _markerDiamondTex = new Texture2D(sz, sz, TextureFormat.RGBA32, false);
-            _markerDiamondTex.filterMode = FilterMode.Bilinear;
-            Vector2 c = new Vector2(16, 16);
+            const int sz = 32;
+            _markerDiamondTex = new Texture2D(sz, sz, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear
+            };
+            Color[] pixels = new Color[sz * sz];
             for (int y = 0; y < sz; y++)
             {
                 for (int x = 0; x < sz; x++)
                 {
-                    float d = Mathf.Abs(x - c.x) + Mathf.Abs(y - c.y);
+                    float d = Mathf.Abs(x - 16f) + Mathf.Abs(y - 16f);
+                    Color col;
                     if (d <= 11f)
                     {
-                        if (d >= 9f) _markerDiamondTex.SetPixel(x, y, new Color(0.08f, 0.05f, 0.01f, 1.0f)); // Bold dark outline
-                        else if (d <= 4f) _markerDiamondTex.SetPixel(x, y, new Color(1f, 1f, 1f, 1.0f)); // Bright white glowing core
-                        else _markerDiamondTex.SetPixel(x, y, new Color(1f, 0.84f, 0.18f, 1.0f)); // Vivid solid gold weight
+                        if (d >= 9f) col = new Color(0.08f, 0.05f, 0.01f, 1.0f);
+                        else if (d <= 4f) col = Color.white;
+                        else col = new Color(1f, 0.84f, 0.18f, 1.0f);
                     }
-                    else if (d <= 13f)
-                    {
-                        _markerDiamondTex.SetPixel(x, y, new Color(0f, 0f, 0f, 0.80f)); // Outer shadow border
-                    }
-                    else
-                    {
-                        _markerDiamondTex.SetPixel(x, y, Color.clear);
-                    }
+                    else if (d <= 13f) col = new Color(0f, 0f, 0f, 0.80f);
+                    else col = Color.clear;
+                    pixels[y * sz + x] = col;
                 }
             }
-            _markerDiamondTex.Apply();
+            _markerDiamondTex.SetPixels(pixels);
+            _markerDiamondTex.Apply(false, true);
             return _markerDiamondTex;
         }
 
@@ -352,26 +332,27 @@ namespace ThatNight.ChapterOne
             Vector3? explicitWorldPt = null;
             float yOffset = 0.25f;
 
-            string objLower = objective.ToLower();
-            if (objLower.Contains("phone") || objLower.Contains("call"))
+            if (ContainsCI(objective, "flashlight"))
+            {
+                if (forestFlashlight != null && !forestFlashlight.IsPickedUp)
+                {
+                    target = forestFlashlight.transform;
+                    yOffset = 0.22f;
+                }
+            }
+            else if (ContainsCI(objective, "phone") || ContainsCI(objective, "call"))
             {
                 if (nokia != null) target = nokia.transform;
             }
-            else if (objLower.Contains("door"))
+            else if (ContainsCI(objective, "door"))
             {
-                var doors = FindObjectsByType<HingedOpening>(FindObjectsSortMode.None);
-                foreach (var d in doors)
+                if (bridalDoor != null && !bridalDoor.isOpen)
                 {
-                    if (d.triggerDirectorOnOpen && !d.isOpen)
-                    {
-                        target = d.transform;
-                        // Position marker exactly on the door panel near the handle
-                        explicitWorldPt = d.transform.TransformPoint(d.handleLocal);
-                        break;
-                    }
+                    target = bridalDoor.transform;
+                    explicitWorldPt = bridalDoor.transform.TransformPoint(bridalDoor.handleLocal);
                 }
             }
-            else if (objLower.Contains("mother"))
+            else if (ContainsCI(objective, "mother"))
             {
                 if (mother != null && mother.gameObject.activeSelf)
                 {
@@ -379,15 +360,15 @@ namespace ThatNight.ChapterOne
                     yOffset = 0.35f;
                 }
             }
-            else if (objLower.Contains("wash") || objLower.Contains("kitchen"))
+            else if (ContainsCI(objective, "wash") || ContainsCI(objective, "kitchen"))
             {
                 if (FaceWashStation.Instance != null && FaceWashStation.Instance.gameObject.activeSelf)
                 {
                     target = FaceWashStation.Instance.transform;
-                    yOffset = 0.85f; // Sits directly on top of the earthen water jar
+                    yOffset = 0.85f;
                 }
             }
-            else if (objLower.Contains("makeup") || objLower.Contains("mirror"))
+            else if (ContainsCI(objective, "makeup") || ContainsCI(objective, "mirror"))
             {
                 if (MakeupMirrorStation.Instance != null)
                 {
@@ -405,7 +386,6 @@ namespace ThatNight.ChapterOne
             {
                 float sx = screenPt.x;
                 float sy = Screen.height - screenPt.y;
-
                 float dist = Vector3.Distance(cam.transform.position, worldPt);
                 float alpha = Mathf.Clamp01((42f - dist) / 10f);
                 float pulse = 0.90f + 0.10f * Mathf.Sin(Time.time * 5f);

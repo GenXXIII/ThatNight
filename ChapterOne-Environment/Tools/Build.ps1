@@ -1,9 +1,12 @@
 $ErrorActionPreference = 'Stop'
 $projectFolder = Split-Path -Parent $PSScriptRoot
-$editor = 'C:\Users\USER\AppData\Local\Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe'
+$editor = @(
+    'C:\Program Files\Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe',
+    (Join-Path $env:LOCALAPPDATA 'Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe')
+) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 $log = Join-Path $projectFolder 'Logs/build.log'
 New-Item -ItemType Directory -Path (Join-Path $projectFolder 'Logs') -Force | Out-Null
-if (-not (Test-Path -LiteralPath $editor)) { throw 'Install Unity 6000.3.28f1 or update the editor path in Tools/Build.ps1.' }
+if (-not $editor) { throw 'Install Unity 6000.3.28f1 or update the editor path in Tools/Build.ps1.' }
 $openEditor = Get-CimInstance Win32_Process -Filter "Name = 'Unity.exe'" | Where-Object { $_.CommandLine -like '*-projectPath*' -and $_.CommandLine -like "*$projectFolder*" -and $_.CommandLine -notlike '*-adb2*' }
 if ($openEditor) {
     $result = Join-Path $projectFolder 'Logs/editor-result.txt'

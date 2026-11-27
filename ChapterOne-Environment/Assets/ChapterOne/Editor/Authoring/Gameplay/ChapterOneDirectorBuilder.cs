@@ -214,6 +214,7 @@ namespace ThatNight.ChapterOne.Editor
             // 8. Solid Doors & Window Security Bars
             SetupWindowsAndDoors();
             ChapterOneSceneRepair.Apply();
+            ForestNightmareBuilder.Apply();
 
             EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
             AssetDatabase.SaveAssets();

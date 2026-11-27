@@ -113,6 +113,49 @@ namespace ThatNight.ChapterOne
             onFullyAwake?.Invoke();
         }
 
+        /// <summary>
+        /// Rapid, startled wake-up blink sequence when jolting awake from the nightmare in bed.
+        /// </summary>
+        public IEnumerator PlayShockWakeSequence(Action onEyesOpen = null, Action onFullyAwake = null)
+        {
+            openAmount = 0f;
+            drowsiness = 0.6f;
+            yield return new WaitForSeconds(0.25f);
+
+            // Snap eyes wide open in panic
+            float t = 0f;
+            while (t < 1f)
+            {
+                t += Time.deltaTime / 0.35f;
+                openAmount = Mathf.Lerp(0f, 0.92f, Mathf.SmoothStep(0, 1, t));
+                drowsiness = Mathf.Lerp(0.6f, 0.15f, t);
+                yield return null;
+            }
+            onEyesOpen?.Invoke();
+            yield return new WaitForSeconds(0.18f);
+
+            // Quick startled blink to clear vision
+            t = 0f;
+            while (t < 1f)
+            {
+                t += Time.deltaTime / 0.16f;
+                openAmount = Mathf.Lerp(0.92f, 0.25f, t);
+                yield return null;
+            }
+            t = 0f;
+            while (t < 1f)
+            {
+                t += Time.deltaTime / 0.28f;
+                openAmount = Mathf.Lerp(0.25f, 1.0f, Mathf.SmoothStep(0, 1, t));
+                drowsiness = Mathf.Lerp(0.15f, 0f, t);
+                yield return null;
+            }
+
+            openAmount = 1.0f;
+            drowsiness = 0f;
+            onFullyAwake?.Invoke();
+        }
+
         void OnGUI()
         {
             if (openAmount >= 0.995f) return;

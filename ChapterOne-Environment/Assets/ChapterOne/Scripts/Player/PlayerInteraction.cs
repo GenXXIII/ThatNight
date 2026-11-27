@@ -16,8 +16,8 @@ namespace ThatNight.ChapterOne
         public WeddingGuest Speaker { get; private set; }
         string speech;
         GUIStyle text, title, prompt, button;
-        bool help = true;
         HingedOpening activeDoorGrab = null;
+        readonly RaycastHit[] hitBuffer = new RaycastHit[16];
 
         // Procedural Reticle Textures (Open Hand, Closed Grab Hand, Dialogue Talk Cursor)
         static Texture2D _handOpenTexture;
@@ -75,27 +75,6 @@ namespace ThatNight.ChapterOne
             return _talkCursorTexture;
         }
 
-        static float DistCircle(Vector2 p, Vector2 center, float radius)
-        {
-            return Vector2.Distance(p, center) - radius;
-        }
-
-        static float DistCapsule(Vector2 p, Vector2 a, Vector2 b, float radius)
-        {
-            Vector2 pa = p - a, ba = b - a;
-            float h = Mathf.Clamp01(Vector2.Dot(pa, ba) / Vector2.Dot(ba, ba));
-            return Vector2.Distance(p, a + ba * h) - radius;
-        }
-
-        static Color EvalReticlePixel(float d)
-        {
-            if (d <= 0f) return Color.white;
-            if (d <= 1.2f) return Color.Lerp(Color.white, new Color(0.05f, 0.05f, 0.05f, 0.95f), d / 1.2f);
-            if (d <= 3.0f) return new Color(0.05f, 0.05f, 0.05f, 0.95f);
-            if (d <= 4.5f) return new Color(0.05f, 0.05f, 0.05f, Mathf.Lerp(0.95f, 0f, (d - 3.0f) / 1.5f));
-            return Color.clear;
-        }
-
         void Start()
         {
             if (PreviewMode.EnvironmentPreview || PreviewMode.EnvironmentReview || PreviewMode.ForestPreview || ChapterOneDirector.Instance != null) return;
@@ -138,8 +117,7 @@ namespace ThatNight.ChapterOne
         void Update()
         {
             if (GameplayReview.IsRunning) return;
-            if (Input.GetKeyDown(KeyCode.H)) help = !help;
-            if (Input.GetKeyDown(KeyCode.F7) && !Busy) { CloseDialogue(); EnterGameplay(); }
+            if (Input.GetKeyDown(KeyCode.F7) && !Busy && ChapterOneDirector.Instance == null) { CloseDialogue(); EnterGameplay(); }
             if (!explorer || !explorer.Walking) { CloseDialogue(); Focus = null; return; }
             if (ChapterOneNarrative.Instance && ChapterOneNarrative.Instance.IsPlaying)
             { Focus = null; return; }
@@ -193,45 +171,11 @@ namespace ThatNight.ChapterOne
 
             if (Busy) return;
 
-            // Direct point-specific raycast targeting (from 0m to 2.0m)
-            const float maxInteractReach = 2.0f;
+            // Direct point-specific raycast targeting using NonAlloc buffers (zero per-frame GC!)
+            const float maxInteractReach = 2.6f;
             Ray ray = new Ray(transform.position, transform.forward);
-            WorldInteractable bestTarget = null;
-
-            // 1. RaycastAll along line of sight so sub-meshes / tabletop don't block the interactable
-            RaycastHit[] hits = Physics.RaycastAll(ray, maxInteractReach, ~(1 << 2), QueryTriggerInteraction.Ignore);
-            if (hits != null && hits.Length > 0)
-            {
-                Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-                foreach (var h in hits)
-                {
-                    var interactable = h.collider.GetComponentInParent<WorldInteractable>();
-                    if (interactable != null && interactable.CanUse && h.distance <= interactable.Reach)
-                    {
-                        bestTarget = interactable;
-                        break;
-                    }
-                }
-            }
-
-            // 2. Fallback gentle 0.08m spherecast to effortlessly target small objects (e.g. phone) from 0m to 2m
-            if (bestTarget == null)
-            {
-                RaycastHit[] sHits = Physics.SphereCastAll(ray, 0.08f, maxInteractReach, ~(1 << 2), QueryTriggerInteraction.Ignore);
-                if (sHits != null && sHits.Length > 0)
-                {
-                    Array.Sort(sHits, (a, b) => a.distance.CompareTo(b.distance));
-                    foreach (var sh in sHits)
-                    {
-                        var interactable = sh.collider.GetComponentInParent<WorldInteractable>();
-                        if (interactable != null && interactable.CanUse && sh.distance <= interactable.Reach)
-                        {
-                            bestTarget = interactable;
-                            break;
-                        }
-                    }
-                }
-            }
+            WorldInteractable bestTarget = FindClosestInteractable(ray, maxInteractReach, 0f)
+                                        ?? FindClosestInteractable(ray, maxInteractReach, 0.08f);
 
             Focus = bestTarget;
 
@@ -260,6 +204,28 @@ namespace ThatNight.ChapterOne
                     target.Use(this);
                 }
             }
+        }
+
+        WorldInteractable FindClosestInteractable(Ray ray, float maxDist, float sphereRadius)
+        {
+            int count = sphereRadius > 0f
+                ? Physics.SphereCastNonAlloc(ray, sphereRadius, hitBuffer, maxDist, ~(1 << 2), QueryTriggerInteraction.Ignore)
+                : Physics.RaycastNonAlloc(ray, hitBuffer, maxDist, ~(1 << 2), QueryTriggerInteraction.Ignore);
+
+            WorldInteractable best = null;
+            float bestDist = float.PositiveInfinity;
+            for (int i = 0; i < count; i++)
+            {
+                var h = hitBuffer[i];
+                if (h.distance >= bestDist || !h.collider) continue;
+                var interactable = h.collider.GetComponentInParent<WorldInteractable>();
+                if (interactable != null && interactable.CanUse && h.distance <= interactable.Reach)
+                {
+                    best = interactable;
+                    bestDist = h.distance;
+                }
+            }
+            return best;
         }
 
         public void ReturnHeldItem()

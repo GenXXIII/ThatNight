@@ -14,33 +14,45 @@
 
 ## 1. Scene Flow & Verbatim Dialogue
 
-**Confirmed 22 November 2026:** Wake up -> answer Brother on the bedroom mirror/dressing table -> Mother calls -> meet Mother -> return to the mirror table for preparation. Chapter 1 displays only **Brother**; no personal name is assigned. This is the authoritative opening order.
+**Confirmed Chapter 1 First-Half Flow:** Forest Nightmare Opening (wake unconscious deep in forest -> glance confused & hear crying -> pick up flashlight -> follow crying voice along winding left-right trail blocked from wedding house -> reach Big Tree auto-walk cinematic -> Ghost back-turned emotional monologue -> slow turn + circling neck + shadow walk to full screen) -> Wake terrified in bed to ringing phone + Mom shouting from outside -> Answer Mom & answer Brother's call at mirror table -> Mother calls -> Meet Mother in living room -> Wash face in kitchen -> Return to mirror table for makeup conversation with Mother.
 
 ```mermaid
 flowchart TD
-    S1[4 AM opening and waking] --> S2[Brother's call at bedroom mirror table]
-    S2 --> S3[Mother calls from living room]
-    S3 --> S4[Explore the house and meet Mother]
-    S4 --> S5[Return to mirror table for wedding preparation]
-    S5 --> S6[Wedding ceremony]
-    S6 --> S7[Evening reception]
-    S7 --> S8[Unexplained disappearance]
-    S8 --> S9[Aerial ending and title]
+    S0[Scene 00: Forest Nightmare — Wake unconscious far from Big Tree] --> S0B[Pick up flashlight into hand]
+    S0B --> S0C[Follow crying voice along winding left-right trail]
+    S0C --> S0D[Big Tree auto-walk cinematic -> Crying woman's back]
+    S0D --> S0E[Ghost emotional monologue: love -> betrayal -> anger]
+    S0E --> S0F[Slow turn, circling neck, shadow walk to full screen]
+    S0F --> S2[Wake terrified in bed -> Ringtone + Mom shouting outside]
+    S2 --> S2B[Answer Brother's call at bedroom mirror table]
+    S2B --> S3[Mother calls from living room]
+    S3 --> S4[Meet Mother in living room & wash face]
+    S4 --> S5[Return to mirror table -> Mother talking at makeup]
 ```
 
 ---
 
-### Scene 01 — Opening Cinematic: 4:00 AM
-* **Time**: 4:00 AM.
-* **Atmosphere Stage**: `AtmosphereStage.Dawn4AM` (Pre-dawn blue, morning mist, distant village birds & cicadas).
-* **Shot List**:
-  * **Shot 01 (Exterior Wide)**: Stilt house exterior before sunrise against dark blue sky.
-  * **Shot 02 (Slow Dolly)**: Camera approaches the house across the quiet grounds.
-  * **Shot 03 (Interior Tracking)**: Glides through the veranda and quiet central living area.
-  * **Shot 04 (Bedroom Medium)**: Enters the bridal bedroom, revealing the bride sleeping under the canopy net.
-  * **Shot 05 (Close-up)**: Bride slowly opens her eyes.
-  * **Shot 06 (Detail Shot)**: Vintage wooden clock on wall ticking at **04:00 AM**.
-  * **Shot 07 (First-Person Transition)**: Camera smoothly aligns with bride's eyes. Gameplay begins.
+### Scene 00 — Opening Nightmare: Dark Forest & The Crying Woman
+* **Atmosphere Stage**: `AtmosphereStage.NightHorror` (`AmbienceScene.Horror`).
+* **Location & Winding Trail**: Bride wakes unconscious deep in the western jungle at `(-1240, 20.88, 560)`—over **1,350m away from the Wedding House** and ~**760m along a winding left-and-right S-curve trail** leading to the **Colossal 20x Sacred World Tree** (`-880, 1020`). A polyline corridor clamp keeps her strictly on the winding trail so she cannot walk straight to the tree or return to the wedding house.
+* **Phase 1 — Unconscious Wake-Up & Confused Glance**:
+  * Eyes slowly open on the forest floor (`EyelidOverlay`). Camera glances left and right in confusion while spatial female crying (`WomanCrying.wav`) echoes from deeper along the first bend.
+* **Phase 2 — Pick Up Flashlight & Follow Winding Trail**:
+  * Bride stands up and picks up the 3D flashlight resting beside her into her right hand (single unified SpotLight beam).
+  * She follows the 3D crying voice curving right, left, right, left, right through the dense dark woods, guided by subtle beeswax candles and jasmine petals at the bends.
+* **Phase 3 — Big Tree Auto-Walk Cinematic & Emotional Monologue**:
+  * Reaching the Big Tree glade smoothly auto-walks her behind the crying **Shadow Ghost Woman** (**only her back is visible**).
+  * Bride asks why she is crying. The ghost relives her pain aloud—moving from deep love and broken promises, to betrayal and suffering, and finally snapping into pure anger (crying stops, blaming the Bride as her problem)—shifting the Bride's feeling from sympathy to fear.
+* **Phase 4 — Transformation & Full-Screen Shadow Scare**:
+  * With bone-snapping audio (`NeckCrack.wav`), the ghost rises, **slowly turns around** while twisting her neck in an unnatural circling motion, and stalks forward in a terrifying shadow pose until her dark shadowed face **fills the entire screen**, smash-cutting instantly to pure black.
+
+---
+
+### Scene 02 — Waking Terrified in Bed, Mom Shouting Outside & Brother's Call
+* **Time**: 4:00 AM (`AtmosphereStage.Dawn4AM`).
+* **Sequence**:
+  * Bride jolts awake terrified on her bridal bed pillow (`PlayShockWakeSequence` + `ShockGasp.wav`) while the Nokia phone is **already ringing loudly** on the bedroom mirror table.
+  * Mother shouts urgently from outside the closed door because the phone has been ringing for a long time without an answer; the Bride replies, rises from bed, and goes to answer Brother's call, continuing through to Mother talking at makeup.
 
 ---
 

@@ -41,12 +41,20 @@ namespace ThatNight.ChapterOne
         public Transform lForearm;
         public Transform rForearm;
 
+        bool bonesSearched;
+
         void Start()
         {
             var cam = Camera.main;
             if (cam) playerCam = cam.transform;
+            CacheBones();
+        }
 
-            // Find upper arm bones for natural human resting posture
+        void CacheBones()
+        {
+            if (bonesSearched) return;
+            bonesSearched = true;
+            if (!head) head = FindBone(transform, "Bip01 Head");
             if (!lUpperArm) lUpperArm = FindBone(transform, "Bip01 L UpperArm");
             if (!rUpperArm) rUpperArm = FindBone(transform, "Bip01 R UpperArm");
             if (!lForearm) lForearm = FindBone(transform, "Bip01 L Forearm");
@@ -66,14 +74,10 @@ namespace ThatNight.ChapterOne
 
         void LateUpdate()
         {
-            if (!lUpperArm) lUpperArm = FindBone(transform, "Bip01 L UpperArm");
-            if (!rUpperArm) rUpperArm = FindBone(transform, "Bip01 R UpperArm");
-            if (!lForearm) lForearm = FindBone(transform, "Bip01 L Forearm");
-            if (!rForearm) rForearm = FindBone(transform, "Bip01 R Forearm");
+            if (!bonesSearched) CacheBones();
 
             // 1. Natural Human Arm Resting Posture & Gentle Idle Breathing
             float breath = Application.isPlaying ? Mathf.Sin(Time.time * 1.8f) * 1.2f : 0f;
-            // 277.5f (-82.5 deg) on left and 82.5 deg on right rests arms naturally down beside hips
             if (lUpperArm) lUpperArm.localEulerAngles = new Vector3(5.35f + breath, 277.5f, 354.74f);
             if (rUpperArm) rUpperArm.localEulerAngles = new Vector3(354.65f - breath, 82.5f, 354.74f);
             if (lForearm) lForearm.localEulerAngles = new Vector3(1.08f, 352.0f, 2.98f);
@@ -81,7 +85,7 @@ namespace ThatNight.ChapterOne
 
             // 2. Natural head tracking — Mother looks at her daughter when nearby
             if (!Application.isPlaying) return;
-            if (!head) head = FindBone(transform, "Bip01 Head");
+            if (!playerCam) { var cam = Camera.main; if (cam) playerCam = cam.transform; }
             if (!head || !playerCam) return;
 
             lookPose.UpdatePose(transform, head, playerCam);

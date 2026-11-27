@@ -21,8 +21,9 @@ namespace ThatNight.ChapterOne
     public enum GameScene
     {
         None,
-        Scene01_Opening,
-        Scene02_WakingUpAndPhone,   // Waking and Brother's call at the bedroom mirror table
+        Scene00_ForestNightmare,    // Opening nightmare: wake in forest, discover, follow crying to big tree
+        Scene01_Opening,            // Intro menu tour state
+        Scene02_WakingUpAndPhone,   // Shock wake-up in bed and Brother's call at the bedroom mirror table
         Scene03_MotherCallsDoor,    // Mother calls, bride opens bedroom door
         Scene04_LivingRoom,         // Meet Mother in living room
         Scene05_Preparation,        // Dressing table with Mother
@@ -55,6 +56,12 @@ namespace ThatNight.ChapterOne
         public GroomNPC groom;
         public NokiaHandPhone nokia;
         public WeddingPreparationStation preparationStation;
+        HingedOpening bridalDoor;
+
+        [Header("Forest Nightmare")]
+        public ShadowGhostWoman ghostWoman;
+        public ForestFlashlightPickup forestFlashlight;
+        public Transform forestNightmareRoot;
 
         [Header("Audio")]
         public AudioSource sfx;
@@ -63,6 +70,9 @@ namespace ThatNight.ChapterOne
         public AudioClip clipRumble;
         public AudioClip clipScream;
         public AudioClip clipDoorBurst;
+        public AudioClip clipWomanCrying;
+        public AudioClip clipNeckCrack;
+        public AudioClip clipShockGasp;
 
         [Header("Title / Intro Menu")]
         public bool showIntroMenu = true;
@@ -70,18 +80,21 @@ namespace ThatNight.ChapterOne
 
         float fade;
         float shake;
+        float shadowScareFlash;
         bool titleCard;
         bool objectiveVisible = true;
-        bool skipOpening = false;
-        public bool skipCurrentShot = false;
-        public float cinematicSpaceTimer = 0f;
-        public const float CinematicHoldToSkip = 2.0f;
-
         public bool hasMovedAround = false;
+        public bool hasPickedUpFlashlightOnce = false;
         public bool hasPickedUpPhoneOnce = false;
         public bool hasOpenedDoorOnce = false;
         public bool isStandingUp = false;
         public bool SequenceBusy { get; private set; }
+
+        public void OnForestFlashlightPickedUp()
+        {
+            hasPickedUpFlashlightOnce = true;
+            if (explorer != null) explorer.FlashlightUnlocked = true;
+        }
 
         void BeginSequence(IEnumerator sequence)
         {
@@ -128,6 +141,18 @@ namespace ThatNight.ChapterOne
             if (!groom)      groom      = FindFirstObjectByType<GroomNPC>();
             if (!nokia)      nokia      = FindFirstObjectByType<NokiaHandPhone>();
             if (!preparationStation) preparationStation = FindFirstObjectByType<WeddingPreparationStation>();
+            if (!bridalDoor)
+            {
+                foreach (var d in FindObjectsByType<HingedOpening>(FindObjectsSortMode.None))
+                    if (d && d.triggerDirectorOnOpen) { bridalDoor = d; break; }
+            }
+            if (!ghostWoman) ghostWoman = FindFirstObjectByType<ShadowGhostWoman>(FindObjectsInactive.Include);
+            if (!forestFlashlight) forestFlashlight = FindFirstObjectByType<ForestFlashlightPickup>(FindObjectsInactive.Include);
+            if (!forestNightmareRoot)
+            {
+                var foundRoot = GameObject.Find("Forest Nightmare Opening");
+                if (foundRoot) forestNightmareRoot = foundRoot.transform;
+            }
             if (!sfx) { sfx = gameObject.AddComponent<AudioSource>(); sfx.spatialBlend = 0f; }
         }
 
@@ -144,6 +169,7 @@ namespace ThatNight.ChapterOne
         {
             if (explorer)
             {
+                explorer.CinematicOverride = false;
                 explorer.ControlsLocked = false;
                 explorer.MovementLocked = false;
                 if (!explorer.Walking) explorer.SetWalking(true);
@@ -198,66 +224,25 @@ namespace ThatNight.ChapterOne
         {
             var cam = MainCam;
             if (!cam) yield break;
-            float t = 0;
-            while (t < 1f)
+            bool prevOverride = explorer != null && explorer.CinematicOverride;
+            if (explorer != null) explorer.CinematicOverride = true;
+            try
             {
-                t += Time.deltaTime / duration;
-                float s = Mathf.SmoothStep(0, 1, t);
-                cam.transform.position = Vector3.Lerp(from, to, s);
-                cam.transform.rotation = Quaternion.Slerp(fromRot, toRot, s);
-                yield return null;
+                float t = 0;
+                while (t < 1f)
+                {
+                    t += Time.deltaTime / duration;
+                    float s = Mathf.SmoothStep(0, 1, t);
+                    cam.transform.position = Vector3.Lerp(from, to, s);
+                    cam.transform.rotation = Quaternion.Slerp(fromRot, toRot, s);
+                    yield return null;
+                }
+                cam.transform.SetPositionAndRotation(to, toRot);
             }
-            cam.transform.SetPositionAndRotation(to, toRot);
-        }
-
-        // Constant-velocity cruising camera motion (steady 10 km/h) with seamless overlapping cross-fades
-        IEnumerator GlideCameraCruising(Vector3 from, Vector3 to, Quaternion fromRot, Quaternion toRot, float duration, float fadeInTime, float fadeOutTime)
-        {
-            var cam = MainCam;
-            if (!cam) yield break;
-
-            float t = 0f;
-            while (t < 1f)
+            finally
             {
-                if (skipOpening)
-                {
-                    fade = 1f;
-                    yield break;
-                }
-                if (skipCurrentShot)
-                {
-                    skipCurrentShot = false;
-                    fade = 1f;
-                    yield break;
-                }
-                t += Time.deltaTime / duration;
-                float currentT = Mathf.Clamp01(t);
-
-                // Constant linear cruising speed — never drops to 0 km/h during transition!
-                cam.transform.position = Vector3.Lerp(from, to, currentT);
-                cam.transform.rotation = Quaternion.Slerp(fromRot, toRot, currentT);
-
-                float timeRemaining = (1f - currentT) * duration;
-                float timePassed = currentT * duration;
-
-                if (timePassed < fadeInTime && fadeInTime > 0.01f)
-                {
-                    fade = Mathf.Clamp01(1f - (timePassed / fadeInTime));
-                }
-                else if (timeRemaining < fadeOutTime && fadeOutTime > 0.01f)
-                {
-                    fade = Mathf.Clamp01(1f - (timeRemaining / fadeOutTime));
-                }
-                else
-                {
-                    fade = 0f;
-                }
-
-                yield return null;
+                if (explorer != null) explorer.CinematicOverride = prevOverride;
             }
-
-            cam.transform.SetPositionAndRotation(to, toRot);
-            fade = (fadeOutTime > 0.01f) ? 1f : 0f;
         }
 
         IEnumerator GlideCameraPath(Vector3[] positions, Quaternion[] rotations, float[] durations)
@@ -322,9 +307,13 @@ namespace ThatNight.ChapterOne
             {
                 switch (currentScene)
                 {
+                    case GameScene.Scene00_ForestNightmare:
                     case GameScene.Scene01_Opening:
-                        yield return Scene01_OpeningCinematic();
-                        yield return Scene02_WakeUpToPhoneCall();
+                        yield return Scene00_ForestNightmareSequence();
+                        yield return Scene02_WakeUpToPhoneCall(fromNightmare: true);
+                        break;
+                    case GameScene.Scene02_WakingUpAndPhone:
+                        yield return Scene02_WakeUpToPhoneCall(fromNightmare: false);
                         break;
                     default:
                         SetAtmosphere(AtmosphereStage.AfternoonCelebration);
@@ -447,43 +436,26 @@ namespace ThatNight.ChapterOne
 
             yield return new WaitForSeconds(0.4f);
 
-            yield return Scene01_OpeningCinematic();
-            yield return Scene02_WakeUpToPhoneCall();
+            yield return Scene00_ForestNightmareSequence();
+            yield return Scene02_WakeUpToPhoneCall(fromNightmare: true);
         }
 
-        // ================================================================
-        // SCENE 01 — OPENING CINEMATIC (4:00 AM)
-        // 3 Exact Cinematic Shots matching reference photographs:
-        // 1. Top Aerial Overview Curving to the Left (Photo 1)
-        // 2. Left Side of Wedding Marquee Moving Straight (Photo 2)
-        // 3. Front Entrance Arch Moving Straight Forward along Red Carpet (Photo 3)
-        // ================================================================
-
-        void Update()
-        {
-            if (currentScene == GameScene.Scene01_Opening && !showIntroMenu)
-            {
-                if (Input.GetKey(KeyCode.Space))
-                {
-                    cinematicSpaceTimer += Time.deltaTime;
-                    if (cinematicSpaceTimer >= CinematicHoldToSkip)
-                    {
-                        skipOpening = true;
-                        cinematicSpaceTimer = 0f;
-                    }
-                }
-                else
-                {
-                    cinematicSpaceTimer = 0f;
-                }
-            }
-        }
+        Vector3 appliedShakeOffset;
 
         void LateUpdate()
         {
-            if (shake > 0.001f && MainCam)
+            var cam = MainCam;
+            if (!cam) return;
+            // Remove previous frame's shake offset before applying a new one so camera NEVER drifts!
+            if (appliedShakeOffset.sqrMagnitude > 0f)
             {
-                MainCam.transform.localPosition += UnityEngine.Random.insideUnitSphere * shake;
+                cam.transform.localPosition -= appliedShakeOffset;
+                appliedShakeOffset = Vector3.zero;
+            }
+            if (shake > 0.001f)
+            {
+                appliedShakeOffset = UnityEngine.Random.insideUnitSphere * shake;
+                cam.transform.localPosition += appliedShakeOffset;
             }
         }
 
